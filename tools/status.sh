@@ -32,7 +32,9 @@ echo "Machine     : $(detect_describe)"
 echo "Kernel      : $KVER"
 if distro_secure_boot_on; then
     sb="on"
-    if [[ -r "$MOK_DIR/MOK.der" ]] && mokutil --test-key "$MOK_DIR/MOK.der" 2>/dev/null | grep -q 'already enrolled'; then
+    # Captured, not piped: mokutil --test-key exits non-zero for an enrolled
+    # key and grep -q ends pipelines early, and both trip pipefail.
+    if [[ -r "$MOK_DIR/MOK.der" ]] && grep -q 'already enrolled' <<< "$(mokutil --test-key "$MOK_DIR/MOK.der" 2>/dev/null)"; then
         sb+=", signing key enrolled"
     elif [[ -r "$MOK_DIR/MOK.der" ]]; then
         sb+=", signing key NOT enrolled"
@@ -44,12 +46,12 @@ else
 fi
 echo "Secure Boot : $sb"
 stamp="$(sed -n 's/^rev=//p' /var/lib/honor/apply.stamp 2>/dev/null)"
-echo "Applied     : ${stamp:+revision ${stamp:0:12}}${stamp:-never}"
+echo "Applied     : ${stamp:+revision }${stamp:0:12}${stamp:-never}"
 (( ROOT_OK )) || echo "(not root: the ACPI and journal checks are skipped)"
 echo
 
 kver_ge() { [[ "$(printf '%s\n' "$1" "$2" | sort -V | head -1)" == "$2" ]]; }
-journal() { (( ROOT_OK )) && journalctl -k -b --no-pager 2>/dev/null | grep -qiE "$1"; }
+journal() { (( ROOT_OK )) && grep -qiE "$1" <<< "$(journalctl -k -b --no-pager 2>/dev/null)"; }
 overlay_present() { compgen -G "$MODDIR/updates/$1.ko*" >/dev/null; }
 overlay_loaded() {
     local f
@@ -106,7 +108,8 @@ for fix in acpi-override psr-band oled-backlight cdclk-ptl edp-dsc headset-mic s
         else bad "$fix" "not installed"; fi ;;
     fingerprint)
         v="$(dpkg-query -W -f '${Version}' libfprint-2-2 2>/dev/null || pacman -Q libfprint 2>/dev/null | awk '{print $2}')"
-        if [[ "$v" == *honor* ]] || [[ -f /var/lib/honor/fingerprint.stamp ]]; then ok "$fix" "libfprint ${v:-?}"
+        if [[ -f /opt/honor-libfprint-sdcp/lib/libfprint-2.so && -f /etc/ld.so.conf.d/00-honor-libfprint-sdcp.conf ]]; then ok "$fix" "SDCP libfprint in /opt ahead of ${v:-?}"
+        elif [[ "$v" == *honor* ]] || [[ -f /var/lib/honor/fingerprint.stamp ]]; then ok "$fix" "libfprint ${v:-?}"
         else bad "$fix" "distribution libfprint ${v:-?} without the reader"; fi ;;
     battery)
         t="$(cat /sys/devices/platform/huawei-wmi/charge_control_thresholds 2>/dev/null)"
