@@ -167,10 +167,11 @@ source "$SCRIPT_DIR/lib/variant.sh"
 # the machine owner key that dkms uses, so the tools and the key have to exist
 # before the first build. See docs/UBUNTU.md.
 if [[ "$(distro_family)" == debian ]] && distro_secure_boot_on; then
-    echo "Secure Boot preflight: mokutil, shim-signed, dkms, kernel headers"
+    echo "Preflight: mokutil, shim-signed, dkms, kernel headers, clang, udev-hid-bpf"
     # Non-interactive: a debconf question with the output hidden is a hang.
-    DEBIAN_FRONTEND=noninteractive distro_pkg_install mokutil shim-signed dkms "linux-headers-$(uname -r)" 2>&1 | tail -3 \
-        || echo "    [warn] could not install mokutil, shim-signed, dkms or the kernel headers; module signing may fail"
+    DEBIAN_FRONTEND=noninteractive distro_pkg_install mokutil shim-signed dkms "linux-headers-$(uname -r)" \
+        clang udev-hid-bpf 2>&1 | tail -3 \
+        || echo "    [warn] could not install the build tools; module signing and the HID-BPF fixes may fail"
     [[ -r "$MOK_DIR/MOK.priv" ]] || update-secureboot-policy --new-key >/dev/null 2>&1 || true
     if [[ -r "$MOK_DIR/MOK.der" ]] && ! distro_mok_enrolled; then
         # The password only confirms, once, in MokManager at the next boot that
