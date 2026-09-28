@@ -172,10 +172,12 @@ distro_can_sign() {
 }
 
 # distro_mok_enrolled: the firmware knows the key, or its enrolment is queued.
+# mokutil --test-key exits non-zero for an enrolled key, so under pipefail
+# its output has to be captured, not piped.
 distro_mok_enrolled() {
     command -v mokutil >/dev/null || return 1
-    mokutil --test-key "${MOK_DIR}/MOK.der" 2>/dev/null | grep -q 'already enrolled' && return 0
-    mokutil --list-new 2>/dev/null | grep -q .
+    grep -q 'already enrolled' <<< "$(mokutil --test-key "${MOK_DIR}/MOK.der" 2>/dev/null)" && return 0
+    grep -q . <<< "$(mokutil --list-new 2>/dev/null)"
 }
 
 # distro_mok_usable: a module signed with the key loads in this boot, which is
@@ -184,7 +186,7 @@ distro_mok_enrolled() {
 distro_mok_usable() {
     distro_secure_boot_on || return 0
     command -v mokutil >/dev/null || return 1
-    mokutil --test-key "${MOK_DIR}/MOK.der" 2>/dev/null | grep -q 'already enrolled'
+    grep -q 'already enrolled' <<< "$(mokutil --test-key "${MOK_DIR}/MOK.der" 2>/dev/null)"
 }
 
 # distro_module_sign <built.ko> [kver]
