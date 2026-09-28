@@ -53,6 +53,11 @@ sudo ./apply_patch.sh
 sudo reboot        # enrol the key in MokManager on the way up
 ```
 
+Run it with the terminal as its stdout. Under `sudo ./apply_patch.sh | tee log`
+sudo puts the command in a pty whose foreground group is not the pipe's, and
+the first apt that has real work to do stops on SIGTTOU and never returns. To
+keep a log, use `script -qfec "sudo ./apply_patch.sh" log`.
+
 A run that finishes without a warning records its git revision in
 `/var/lib/honor/apply.stamp`, and the same revision is not applied twice, so a
 dotfiles installer can call `apply_patch.sh` on every run. `FORCE=1` repeats
