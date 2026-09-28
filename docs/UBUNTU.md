@@ -12,11 +12,13 @@ Two consequences:
 - **Modules are signed.** Every overlay this repository builds (`xe`,
   `huawei-wmi`, `snd-hda-codec-alc269`, `snd-sof`) is signed with the machine
   owner key in `/var/lib/shim-signed/mok/`, the same key dkms uses for
-  `honor-ec-sensors`. `apply_patch.sh` creates the key if there is none. The
-  first signing queues its enrolment: choose a one-time password, reboot,
-  press a key as soon as the blue MokManager screen appears (it times out in
-  seconds), pick *Enroll MOK*, *Continue*, enter the password. One enrolment
-  covers every module, now and after kernel updates.
+  `honor-ec-sensors`. `apply_patch.sh` creates the key if there is none and
+  queues its enrolment with the one-time password `0000` (`MOK_PASSWORD=`
+  overrides it). Reboot, press a key as soon as the blue MokManager screen
+  appears (it times out in seconds), pick *Enroll MOK*, *Continue*, enter the
+  password. One enrolment covers every module, now and after kernel updates.
+  The password confirms the enrolment once and is then discarded; the secret
+  is `MOK.priv`, readable by root only.
 - **The ACPI override still applies.** Lockdown has a check against initrd
   table overrides, but the Ubuntu 7.0 kernel applies them regardless:
   `journalctl -k -b` shows `Kernel is locked down from EFI Secure Boot mode`

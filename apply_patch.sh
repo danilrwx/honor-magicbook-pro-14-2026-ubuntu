@@ -169,22 +169,27 @@ if [[ "$(distro_family)" == debian ]] && distro_secure_boot_on; then
         || echo "    [warn] could not install mokutil, shim-signed or the kernel headers; module signing may fail"
     [[ -r "$MOK_DIR/MOK.priv" ]] || update-secureboot-policy --new-key >/dev/null 2>&1 || true
     if [[ -r "$MOK_DIR/MOK.der" ]] && ! distro_mok_enrolled; then
+        # The password only confirms, once, in MokManager at the next boot that
+        # whoever queued the enrolment was at the machine; it is not stored and
+        # unlocks nothing afterwards. The secret is MOK.priv, root-only. So a
+        # fixed default is fine and keeps this non-interactive; MOK_PASSWORD=
+        # overrides it.
+        MOK_PASSWORD="${MOK_PASSWORD:-0000}"
         cat <<EOF
 Secure Boot is on, so the rebuilt kernel modules will be signed with the machine
-owner key in $MOK_DIR. The firmware has to learn that key once: choose a
-one-time password now, and after the reboot press a key as soon as the blue
-MokManager screen appears (it times out in seconds), pick 'Enroll MOK',
-'Continue', and enter that password.
+owner key in $MOK_DIR. The firmware has to learn that key once: after the
+reboot press a key as soon as the blue MokManager screen appears (it times out
+in seconds), pick 'Enroll MOK', 'Continue', and enter the password ${MOK_PASSWORD}.
 
 EOF
-        # Straight to the terminal: mokutil's password prompt is buffered and
-        # never shows when stdout is a pipe, as it is under `| tee`.
-        if [[ -c /dev/tty ]]; then
-            mokutil --import "$MOK_DIR/MOK.der" < /dev/tty > /dev/tty 2>&1 \
-                || echo "    [warn] enrolment failed; do it yourself: mokutil --import $MOK_DIR/MOK.der"
+        MOK_HASH="$(mktemp)"
+        if mokutil --generate-hash="$MOK_PASSWORD" > "$MOK_HASH" \
+           && mokutil --import "$MOK_DIR/MOK.der" --hash-file "$MOK_HASH" >/dev/null; then
+            echo "    enrolment queued"
         else
-            echo "    [warn] no terminal to ask a password on; enrol the key yourself: mokutil --import $MOK_DIR/MOK.der"
+            echo "    [warn] enrolment failed; do it yourself: mokutil --import $MOK_DIR/MOK.der"
         fi
+        rm -f "$MOK_HASH"
     fi
 fi
 
@@ -937,7 +942,7 @@ if distro_secure_boot_on && [[ -r "$MOK_DIR/MOK.der" ]] \
   Secure Boot: the module signing key is queued for enrolment. Right after
   the reboot press a key when the blue MokManager screen appears (it times
   out in seconds), choose 'Enroll MOK', 'Continue', and enter the password
-  you chose above. Without that the rebuilt modules will not load.
+  ${MOK_PASSWORD:-you chose}. Without that the rebuilt modules will not load.
 EOF
 fi
 
