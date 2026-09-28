@@ -149,6 +149,8 @@ plainly when that is not one the profile describes.
 | `SKIP_EDGE=1` | leave the touchpad left-edge brightness gesture dead |
 | `SKIP_FAN=1` | no fan RPM readout |
 | `SKIP_FINGERPRINT=1` | no `libfprint` rebuild, by far the slowest step |
+| `SKIP_HEADSET=1` | no `snd-hda-codec-alc269` rebuild for the 3.5 mm headset mic |
+| `SKIP_SOF=1` | no `snd-sof` rebuild, the preventive DSP resume fix |
 | `VBT_MIN=<n>` | backlight floor in n/255, default 12. Measure yours first with `patch/oled-backlight/measure-floor.sh` |
 | `SKIP_CDCLK=1` | leave the Panther Lake cdclk fix out of the `xe.ko` rebuild |
 | `SKIP_DSC=1` | leave the DSC preference out of it. Both run where the profile lists them; the build downloads the distro kernel source, about 260 MB, and compiles for a few minutes, and the two together build the module once |

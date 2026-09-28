@@ -713,10 +713,12 @@ export XE_SKIP="${XE_SKIP# }"
 
 if (( ! want_cdclk && ! want_dsc )); then
     :
-# Either installer builds the same module and both are safe to call; the
-# second one finds the work already done and says so.
-elif { (( want_cdclk )) && REGEN=0 bash "$PATCH_DIR/cdclk-ptl/install.sh"; } \
-     || { (( want_dsc )) && REGEN=0 bash "$PATCH_DIR/edp-dsc/install.sh"; }; then
+# Either installer builds the same module and both are safe to call: the
+# second one finds the work already done and says so. Both are called, not
+# chained with ||: cdclk-ptl exits 0 on a kernel that predates its bug, and
+# that used to stop edp-dsc from ever running there.
+elif xe_ok=1; { (( ! want_cdclk )) || REGEN=0 bash "$PATCH_DIR/cdclk-ptl/install.sh" || xe_ok=0; } \
+     ; { (( ! want_dsc )) || REGEN=0 bash "$PATCH_DIR/edp-dsc/install.sh" || xe_ok=0; }; (( xe_ok )); then
     echo "    OK"
 else
     step_warn "the xe.ko rebuild failed — everything else still applies."
