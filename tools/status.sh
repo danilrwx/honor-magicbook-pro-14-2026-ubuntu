@@ -46,7 +46,8 @@ else
 fi
 echo "Secure Boot : $sb"
 stamp="$(sed -n 's/^rev=//p' /var/lib/honor/apply.stamp 2>/dev/null)"
-echo "Applied     : ${stamp:+revision }${stamp:0:12}${stamp:-never}"
+[[ -n "$stamp" ]] && stamp="revision ${stamp:0:12}"
+echo "Applied     : ${stamp:-never}"
 (( ROOT_OK )) || echo "(not root: the ACPI and journal checks are skipped)"
 echo
 
