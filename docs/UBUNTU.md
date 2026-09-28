@@ -49,6 +49,11 @@ sudo ./apply_patch.sh
 sudo reboot        # enrol the key in MokManager on the way up
 ```
 
+A run that finishes without a warning records its git revision in
+`/var/lib/honor/apply.stamp`, and the same revision is not applied twice, so a
+dotfiles installer can call `apply_patch.sh` on every run. `FORCE=1` repeats
+everything.
+
 After the reboot:
 
 ```sh

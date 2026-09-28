@@ -102,6 +102,7 @@ shopt -s nullglob
 rm -rfv /usr/src/honor-zqcp-hwmon-1.0 \
         /usr/local/lib/honor-zqcp \
         /var/lib/honor-zqcp \
+        /var/lib/honor/apply.stamp \
         /etc/modules-load.d/honor-zqcp-hwmon.conf \
         /etc/honor-zqcp-autorebuild.conf \
         /etc/pacman.d/hooks/95-honor-zqcp-kernel-modules.hook \

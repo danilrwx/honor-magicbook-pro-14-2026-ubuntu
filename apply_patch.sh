@@ -221,6 +221,19 @@ if [[ -n "$BOARD_NOTE" ]]; then
     echo "Note     : $BOARD_NOTE"
 fi
 
+# Idempotence: a run that finished without a warning records the revision it
+# came from, and the same revision is not applied twice. A dotfiles installer
+# can call this on every run; kernel updates are the auto-rebuild hooks' job.
+# FORCE=1 runs everything again. safe.directory because this runs under sudo
+# from a checkout the user owns, which git otherwise refuses to read.
+APPLY_STAMP=/var/lib/honor/apply.stamp
+APPLY_REV="$(git -c safe.directory="$SCRIPT_DIR" -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null || echo unknown)"
+if [[ "${FORCE:-0}" != "1" && "$APPLY_REV" != unknown \
+      && "$(sed -n 's/^rev=//p' "$APPLY_STAMP" 2>/dev/null)" == "$APPLY_REV" ]]; then
+    echo "Already applied at revision ${APPLY_REV:0:12}; FORCE=1 to run it all again."
+    exit 0
+fi
+
 if [[ "$STATUS" != "verified" ]]; then
     if [[ "${ALLOW_UNVERIFIED:-0}" != "1" ]]; then
         cat >&2 <<EOF
@@ -983,6 +996,11 @@ After reboot, verify:
   # patch/sof-audio/install.sh so the codec quirk and the SOF overlay are
   # rebuilt against the new headers. patch/micmute/ needs nothing.
 EOF
+
+if (( ! STEP_WARNINGS )) && [[ "$APPLY_REV" != unknown ]]; then
+    install -d -m 0755 /var/lib/honor
+    printf 'rev=%s\nprofile=%s\ndate=%s\n' "$APPLY_REV" "$MODEL" "$(date -Is)" > "$APPLY_STAMP"
+fi
 
 if (( STEP_WARNINGS )); then
     printf '\n%d step(s) reported a problem. Everything else was applied; read the\n' "$STEP_WARNINGS"
