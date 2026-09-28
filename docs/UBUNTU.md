@@ -6,8 +6,8 @@ behave the same, untested.
 
 ## Secure Boot
 
-With Secure Boot on the kernel is locked down: it loads only signed modules and
-ignores ACPI table overrides from the initrd. Two consequences:
+With Secure Boot on the kernel is locked down and loads only signed modules.
+Two consequences:
 
 - **Modules are signed.** Every overlay this repository builds (`xe`,
   `huawei-wmi`, `snd-hda-codec-alc269`, `snd-sof`) is signed with the machine
@@ -17,10 +17,12 @@ ignores ACPI table overrides from the initrd. Two consequences:
   press a key as soon as the blue MokManager screen appears (it times out in
   seconds), pick *Enroll MOK*, *Continue*, enter the password. One enrolment
   covers every module, now and after kernel updates.
-- **The ACPI override does not apply.** Nothing signs an ACPI table, so
-  `patch/acpi-override/` needs Secure Boot off. On this board the touchpad
-  and keyboard work on the archive kernel without it; if yours do not, that
-  is the trade.
+- **The ACPI override still applies.** Lockdown has a check against initrd
+  table overrides, but the Ubuntu 7.0 kernel applies them regardless:
+  `journalctl -k -b` shows `Kernel is locked down from EFI Secure Boot mode`
+  followed by `ACPI: Table Upgrade: override [SSDT- HONOR-I2C_DEVT]`, and the
+  live `SSDT27` is the patched one. `tools/status.sh` reports which of the two
+  you got.
 
 `lib/distro.sh` does the signing (`distro_module_sign`), and it is a no-op
 where Secure Boot is off.
