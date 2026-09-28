@@ -107,9 +107,12 @@ log "kernel  = ${KVER}"
 # needed even though this program does not touch the descriptor.
 ksrc_resolve
 log "headers = ${KSRC_TAG}"
-for h in hid_bpf.h hid_bpf_helpers.h hid_report_descriptor_helpers.h; do
+for h in hid_bpf.h hid_bpf_helpers.h; do
     ksrc_fetch "drivers/hid/bpf/progs/${h}" "${WORK}/${h}"
 done
+# Only exists from 7.1 and the program does not include it; harmless if absent.
+ksrc_fetch_opt drivers/hid/bpf/progs/hid_report_descriptor_helpers.h \
+    "${WORK}/hid_report_descriptor_helpers.h" || true
 bpftool btf dump file /sys/kernel/btf/vmlinux format c > "${WORK}/vmlinux.h"
 
 # --- 3. build -----------------------------------------------------------------

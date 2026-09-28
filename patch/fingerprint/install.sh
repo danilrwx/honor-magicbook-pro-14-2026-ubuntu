@@ -222,6 +222,14 @@ if [[ "$FP_SOURCE" == "git" ]]; then
     hardware by this repository. To undo:
         sudo rm -rf $PREFIX $LDCONF && sudo ldconfig"
 
+    # The distro path installs its build dependencies further down; this path
+    # runs first and needs the same ones.
+    if command -v apt-get >/dev/null 2>&1 && ! command -v meson >/dev/null 2>&1; then
+        log "Installing build dependencies (apt)"
+        DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git meson ninja-build pkg-config \
+            libglib2.0-dev libgusb-dev libnss3-dev libgudev-1.0-dev libgirepository1.0-dev \
+            gobject-introspection libcairo2-dev libpixman-1-dev libpolkit-gobject-1-dev
+    fi
     for t in git meson ninja pkg-config; do
         command -v "$t" >/dev/null || die "missing build tool: $t"
     done
