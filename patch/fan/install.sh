@@ -186,6 +186,10 @@ if [[ "$KVER" != "$(uname -r)" ]]; then
     exit 0
 fi
 
+if ! distro_mok_usable; then
+    log "installed and signed; it loads after the signing key is enrolled at the next boot"
+    exit 0
+fi
 modprobe -r "$MODNAME" 2>/dev/null || true
 modprobe "$MODNAME" || die "modprobe failed — see 'dmesg | tail'"
 

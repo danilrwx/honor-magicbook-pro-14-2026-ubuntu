@@ -149,6 +149,13 @@ if [[ "$KVER" != "$(uname -r)" ]]; then
     exit 0
 fi
 
+# Signed with a key the firmware does not know yet: leave the in-tree module
+# running rather than unload it for a replacement that cannot load until the
+# key is enrolled at the next boot.
+if ! distro_mok_usable; then
+    log "installed and signed; it loads after the signing key is enrolled at the next boot"
+    exit 0
+fi
 modprobe -r huawei-wmi 2>/dev/null || true
 modprobe huawei-wmi || die "the new module would not load; check dmesg"
 log "reloaded huawei-wmi from $(modinfo -k "$KVER" huawei-wmi | awk '/^filename:/{print $2}')"

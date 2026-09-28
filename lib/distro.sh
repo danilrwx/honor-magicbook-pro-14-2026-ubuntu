@@ -178,6 +178,15 @@ distro_mok_enrolled() {
     mokutil --list-new 2>/dev/null | grep -q .
 }
 
+# distro_mok_usable: a module signed with the key loads in this boot, which is
+# the case without Secure Boot and once the firmware has enrolled the key. A
+# queued enrolment does not count: that only takes effect at the next boot.
+distro_mok_usable() {
+    distro_secure_boot_on || return 0
+    command -v mokutil >/dev/null || return 1
+    mokutil --test-key "${MOK_DIR}/MOK.der" 2>/dev/null | grep -q 'already enrolled'
+}
+
 # distro_module_sign <built.ko> [kver]
 # No-op unless Secure Boot is on. Otherwise signs the module in place with the
 # machine owner key, creating it on first use. Enrolment is not done here: it
