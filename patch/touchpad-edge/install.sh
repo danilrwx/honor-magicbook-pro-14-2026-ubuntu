@@ -154,7 +154,12 @@ udev-hid-bpf remove "$DEV" >/dev/null 2>&1 || true
 sleep 1
 udev-hid-bpf add "$DEV" "${INSTALL_DIR}/${OBJ_NAME}" >/dev/null 2>&1 || true
 
-edge_attached() { udev-hid-bpf list-loaded 2>/dev/null | grep -q "$PROG_TAG"; }
+# udev-hid-bpf 2.1 (Ubuntu) has no list-loaded; the attached struct_ops
+# program is visible to bpftool either way.
+edge_attached() {
+    udev-hid-bpf list-loaded 2>/dev/null | grep -q "$PROG_TAG" \
+        || bpftool prog list 2>/dev/null | grep -q "$PROG_TAG"
+}
 gate_wait_until 10 edge_attached \
     || die "the program is not attached to the device"
 
