@@ -167,7 +167,7 @@ source "$SCRIPT_DIR/lib/variant.sh"
 # the machine owner key that dkms uses, so the tools and the key have to exist
 # before the first build. See docs/UBUNTU.md.
 if [[ "$(distro_family)" == debian ]] && distro_secure_boot_on; then
-    echo "Preflight: mokutil, shim-signed, dkms, kernel headers, clang, udev-hid-bpf"
+    echo "Preflight: mokutil, shim-signed, dkms, kernel headers, clang, libbpf-dev, bpftool, udev-hid-bpf"
     # apt gets stopped (SIGTTOU) when it has real work to do and its output is
     # piped or hidden, so it talks to the terminal directly.
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a distro_pkg_install mokutil shim-signed dkms \
