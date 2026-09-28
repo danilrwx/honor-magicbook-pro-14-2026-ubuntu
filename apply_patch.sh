@@ -177,8 +177,14 @@ MokManager screen appears (it times out in seconds), pick 'Enroll MOK',
 'Continue', and enter that password.
 
 EOF
-        mokutil --import "$MOK_DIR/MOK.der" \
-            || echo "    [warn] enrolment failed; do it yourself: mokutil --import $MOK_DIR/MOK.der"
+        # Straight to the terminal: mokutil's password prompt is buffered and
+        # never shows when stdout is a pipe, as it is under `| tee`.
+        if [[ -c /dev/tty ]]; then
+            mokutil --import "$MOK_DIR/MOK.der" < /dev/tty > /dev/tty 2>&1 \
+                || echo "    [warn] enrolment failed; do it yourself: mokutil --import $MOK_DIR/MOK.der"
+        else
+            echo "    [warn] no terminal to ask a password on; enrol the key yourself: mokutil --import $MOK_DIR/MOK.der"
+        fi
     fi
 fi
 
