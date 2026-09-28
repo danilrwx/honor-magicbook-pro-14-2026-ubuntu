@@ -19,6 +19,9 @@ sudo reboot
 `apply_patch.sh` identifies the machine first and refuses if it does not
 recognise it. `uninstall_patch.sh` reverts everything.
 
+On Ubuntu with Secure Boot the rebuilt modules are signed with a machine owner
+key you enrol once at the next boot; see [docs/UBUNTU.md](docs/UBUNTU.md).
+
 ---
 
 ## Status

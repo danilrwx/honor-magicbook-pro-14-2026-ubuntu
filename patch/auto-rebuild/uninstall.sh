@@ -21,6 +21,7 @@ u_rm /etc/pacman.d/hooks/95-honor-kernel-modules.hook \
      /etc/honor-zqcp-autorebuild.conf \
      /etc/pacman.d/hooks/95-honor-zqcp-kernel-modules.hook \
      /etc/pacman.d/hooks/96-honor-zqcp-libfprint.hook \
+     /usr/local/lib/honor/repo \
   || echo "    nothing installed"
 rmdir --ignore-fail-on-non-empty /usr/local/lib/honor 2>/dev/null || true
 

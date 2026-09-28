@@ -49,7 +49,7 @@ u_rm /etc/udev/rules.d/99-honor-backlight-nonzero.rules \
 udevadm control --reload 2>/dev/null || true
 # Off Arch the installer cannot edit an initramfs file list, so it asks for a
 # dracut drop-in instead. Remove ours; a hand-written one is the user's.
-u_rm /etc/dracut.conf.d/honor-vbt.conf
+u_rm /etc/dracut.conf.d/honor-vbt.conf /etc/initramfs-tools/hooks/honor-vbt
 # Globbed: the blob is named after the model it was dumped from, so a machine
 # that is not the reference one has a different file here.
 shopt -s nullglob

@@ -54,6 +54,17 @@ esac
 
 [[ -d "${REPO}/patch" ]] || die "cannot locate the repository from ${SCRIPT_DIR}"
 
+# The hooks run as root, so they must not execute a checkout the user can write
+# to: that would hand root to anything that can edit it. They run a root-owned
+# copy instead; re-run this script after updating the checkout.
+REPO_COPY=/usr/local/lib/honor/repo
+log "copying the repository to ${REPO_COPY}"
+rm -rf "$REPO_COPY"
+install -d -m 0755 "$REPO_COPY"
+tar -C "$REPO" --exclude=.git -cf - . | tar -C "$REPO_COPY" --no-same-owner --no-same-permissions -xf -
+chmod -R u+rwX,go+rX,go-w "$REPO_COPY"
+REPO="$REPO_COPY"
+
 # The fingerprint rebuild has to run makepkg, which refuses to run as root.
 BUILD_USER="${SUDO_USER:-$(logname 2>/dev/null || true)}"
 if [[ -z "$BUILD_USER" || "$BUILD_USER" == "root" ]]; then
@@ -134,8 +145,8 @@ ${WHAT_IS_HOOKED}
 
   Log: /var/log/honor-autorebuild.log
 
-  The repository must stay at ${REPO}. If you move it, re-run this
-  script, or edit REPO in ${CONF}.
+  The hooks run the root-owned copy at ${REPO}, not your checkout.
+  After updating the checkout, re-run this script to refresh the copy.
 
   Dry run without waiting for an update:
       echo | sudo ${LIB_DIR}/rebuild.sh modules

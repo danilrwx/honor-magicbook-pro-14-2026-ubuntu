@@ -170,6 +170,9 @@ xe_build_install() {
         mv /var/tmp/honor-cdclk "$WORKDIR"
     fi
     mkdir -p "$WORKDIR"
+    # root builds here and installs the result into the kernel, so the tree
+    # has to be root's alone, not a directory somebody else prepared earlier.
+    chown root:root "$WORKDIR" && chmod 0700 "$WORKDIR"
     cd "$WORKDIR" || _xe_die "cannot enter $WORKDIR"
 
     if [[ "$KVER" == *cachyos* ]] && command -v pacman >/dev/null; then
@@ -193,6 +196,31 @@ xe_build_install() {
         else
             _xe_log "reusing the existing source tree $SRCDIR"
         fi
+    elif command -v apt-get >/dev/null; then
+        # Debian and Ubuntu ship the tree their kernel was built from as the
+        # linux-source package; a vanilla tarball would miss whatever they
+        # carry in drm/. The package tracks the newest ABI in the archive, so
+        # boot the newest kernel first; the vermagic check below is the net.
+        local SRC_TGZ SRC_ABI RUN_ABI
+        # Ubuntu keeps the tarball inside /usr/src/linux-source-X.Y.Z/, Debian
+        # directly in /usr/src; hence the depth.
+        SRC_TGZ="$(find /usr/src -maxdepth 2 -name 'linux-source-*.tar.*' 2>/dev/null | sort -V | tail -1)"
+        if [[ -z "$SRC_TGZ" ]]; then
+            _xe_log "installing linux-source"
+            distro_pkg_install linux-source >/dev/null || _xe_die "installing linux-source failed"
+            SRC_TGZ="$(find /usr/src -maxdepth 2 -name 'linux-source-*.tar.*' 2>/dev/null | sort -V | tail -1)"
+            [[ -n "$SRC_TGZ" ]] || _xe_die "linux-source installed nothing under /usr/src"
+        fi
+        SRCDIR="$(basename "${SRC_TGZ%%.tar.*}")"
+        SRC_ABI="$(dpkg-query -W -f '${Version}' "$SRCDIR" 2>/dev/null | sed -E 's/^[^-]*-([0-9]+).*/\1/')"
+        RUN_ABI="$(sed -E 's/^[^-]*-([0-9]+).*/\1/' <<< "$KVER")"
+        [[ -z "$SRC_ABI" || "$SRC_ABI" == "$RUN_ABI" ]] \
+            || _xe_warn "linux-source is ABI ${SRC_ABI} but ${KVER} is ABI ${RUN_ABI}: boot the
+    newest kernel and re-run if the module refuses to load"
+        if [[ ! -d "$SRCDIR" ]]; then
+            _xe_log "unpacking $SRC_TGZ"
+            tar xf "$SRC_TGZ"
+        fi
     else
         local MAJOR="${KBASE%%.*}"
         SRCDIR="linux-${KBASE}"
@@ -207,6 +235,8 @@ xe_build_install() {
         _xe_warn "building against a vanilla tree. If this distro patches drm/,
     the resulting module may not match the running kernel."
     fi
+    [[ "$(stat -c %u "$SRCDIR")" == 0 ]] \
+        || _xe_die "$WORKDIR/$SRCDIR is not owned by root; remove it and re-run"
     cd "$SRCDIR" || _xe_die "cannot enter $WORKDIR/$SRCDIR"
 
     # --- patches --------------------------------------------------------------
@@ -250,8 +280,8 @@ xe_build_install() {
         printf '%s\n' "-${KVER#"${KBASE}"}" | sed 's/^--/-/' > localversion.90-local
     fi
 
-    # The build has no access to the distro signing key. Signing is off anyway
-    # on every machine this repo targets, so an unsigned module loads fine.
+    # The build has no access to the distro signing key. Where Secure Boot
+    # needs a signature the module gets one below, with the machine owner key.
     ./scripts/config -d MODULE_SIG_ALL
     make "${MAKEVARS[@]}" olddefconfig >/dev/null
     [[ -r "${MODDIR}/build/Module.symvers" ]] && cp "${MODDIR}/build/Module.symvers" .
@@ -277,6 +307,7 @@ xe_build_install() {
     _xe_log "stripping and compressing"
     if command -v llvm-strip >/dev/null; then llvm-strip --strip-debug "$KO"
     else strip --strip-debug "$KO"; fi
+    distro_module_sign "$KO" "$KVER" || _xe_die "signing xe.ko failed"
     zstd -q -f -19 -T0 "$KO" -o "${WORKDIR}/xe.ko.zst"
 
     local NEW_VM OLD_VM

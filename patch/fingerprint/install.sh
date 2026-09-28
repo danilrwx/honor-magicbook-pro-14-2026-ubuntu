@@ -133,6 +133,8 @@ FP_STAMP=/var/lib/honor/fingerprint.stamp
 fp_installed_version() {
     if command -v pacman >/dev/null 2>&1; then
         pacman -Q libfprint 2>/dev/null | awk '{print $2}'
+    elif command -v dpkg-query >/dev/null 2>&1; then
+        dpkg-query -W -f '${Version}' libfprint-2-2 2>/dev/null || printf 'not-installed'
     else
         printf 'not-a-package'
     fi
@@ -286,6 +288,64 @@ EOF
     exit 0
 fi
 
+# --- Debian and Ubuntu: rebuild the distribution's own package ----------------
+# The patch goes on top of the packaged source, dpkg owns the result, and the
+# packages are held so the next libfprint update does not silently drop the id
+# before it carries it itself. `ninja install` into /usr, which this used to do
+# off Arch, put files where apt would overwrite them and where Ubuntu's loader
+# never looked: its libfprint lives in the multiarch directory.
+fp_apt_build() {
+    local pkgdir="$WORK/deb" tree deb
+    local -a debs=() names=()
+    if ! apt-get indextargets --format '$(TYPE)' 2>/dev/null | grep -qx deb-src; then
+        log "enabling deb-src in the apt sources"
+        sed -i -E 's/^(Types:[[:space:]]*deb)[[:space:]]*$/\1 deb-src/' \
+            /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+    fi
+    apt-get update -qq
+    log "installing the build dependencies"
+    apt-get install -y dpkg-dev devscripts build-essential fakeroot >/dev/null
+    apt-get build-dep -y libfprint >/dev/null || die "apt-get build-dep libfprint failed; is deb-src enabled?"
+    mkdir -p "$pkgdir" && cd "$pkgdir"
+    log "fetching the packaged source"
+    apt-get source libfprint >/dev/null 2>&1 || die "apt-get source libfprint failed"
+    tree="$(find . -mindepth 1 -maxdepth 1 -type d -name 'libfprint-*' | head -1)"
+    [[ -n "$tree" ]] || die "apt-get source unpacked nothing"
+    cd "$tree"
+    if patch -p1 -R --dry-run --silent < "$PATCH" >/dev/null 2>&1; then
+        log "the packaged libfprint already carries $FP_NAME; nothing to build"
+        return 0
+    fi
+    log "applying $(basename "$PATCH") to $(dpkg-parsechangelog -S Version)"
+    patch -p1 --silent < "$PATCH" || die "the patch does not apply to the packaged source"
+    DEBFULLNAME="HONOR MagicBook fixes" DEBEMAIL="root@localhost" \
+        dch --local +honor "Add the $FP_NAME reader ($FP_VID_PID) to the id table."
+    log "building the package (a few minutes)"
+    DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -b -uc -us >/dev/null 2>&1 \
+        || die "dpkg-buildpackage failed; run it by hand in $PWD to see why"
+    cd ..
+    # Only the binaries already on the machine; the rest are dev and docs.
+    for deb in ./*.deb; do
+        local name; name="$(dpkg-deb -f "$deb" Package)"
+        [[ "$(dpkg-query -W -f '${Status}' "$name" 2>/dev/null)" == *"install ok installed"* ]] || continue
+        debs+=("$deb"); names+=("$name")
+    done
+    (( ${#debs[@]} )) || die "none of the built packages is installed here"
+    log "installing ${names[*]}"
+    apt-get install -y --allow-downgrades "${debs[@]}" >/dev/null || die "apt-get install failed"
+    apt-mark hold "${names[@]}" >/dev/null
+    log "held ${names[*]}: unhold them once the archive version carries the reader"
+    if [[ "$(dpkg-query -W -f '${Status}' fprintd 2>/dev/null)" != *"install ok installed"* ]]; then
+        log "installing fprintd"
+        apt-get install -y fprintd libpam-fprintd >/dev/null
+    fi
+}
+
+if command -v apt-get >/dev/null 2>&1 && ! command -v pacman >/dev/null 2>&1; then
+    fp_apt_build
+    fp_write_stamp
+else
+
 # --- 2. build deps ------------------------------------------------------------
 if command -v pacman >/dev/null 2>&1; then
     log "Installing build dependencies (pacman)"
@@ -433,6 +493,7 @@ else
     # anything noticing, which is what the caveat at the end of this script says.
     fp_write_stamp
 fi
+fi
 
 systemctl daemon-reload || true
 systemctl restart fprintd.service 2>/dev/null || true
@@ -463,9 +524,12 @@ If enrollment works, enable it for login/sudo:
     Fedora:        sudo authselect enable-feature with-fingerprint
 
 Caveats:
-  * A distro libfprint update will overwrite this build — re-run this script.
-    On Arch the durable answer is a local PKGBUILD carrying the patch, so
-    pacman owns the files; see patch/fingerprint/PKGBUILD.
+  * Arch: a distro libfprint update overwrites this build, re-run this
+    script; the durable answer is a local PKGBUILD carrying the patch, so
+    pacman owns the files, see patch/fingerprint/PKGBUILD.
+  * Debian/Ubuntu: the rebuilt packages are held, so updates leave them
+    alone. When the archive version carries the reader, run
+    apt-mark unhold libfprint-2-2 and let apt replace them.
   * Enrollment takes 12 samples on this sensor family. Place the finger
     firmly and shift position slightly between touches.
 

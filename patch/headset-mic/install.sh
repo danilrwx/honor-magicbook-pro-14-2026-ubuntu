@@ -96,10 +96,15 @@ req curl
 req zstdcat
 req zstd
 req make
-req clang
 req depmod
 req modprobe
 req strings
+# The module has to come from the same compiler family as the kernel.
+MAKEVARS=""
+if distro_kernel_config_has CONFIG_CC_IS_CLANG=y "$KVER"; then
+    MAKEVARS="LLVM=1 LLVM_IAS=1"
+    req clang
+fi
 # This used to warn that hda-verb was missing and that honor-mic-jack-init.service
 # would therefore not work. That service was the previous iteration of this fix
 # and this installer removes it a few steps further down, so the warning sent
@@ -350,7 +355,7 @@ snd-hda-codec-alc269-y := alc269.o
 ccflags-y += -I\$(src)
 
 default:
-	\$(MAKE) -C \$(KDIR) M=\$(PWD) CC=clang LLVM=1 modules
+	\$(MAKE) -C \$(KDIR) M=\$(PWD) ${MAKEVARS} modules
 
 clean:
 	\$(MAKE) -C \$(KDIR) M=\$(PWD) clean
@@ -364,6 +369,7 @@ if [[ ! -f "${WORK}/snd-hda-codec-alc269.ko" ]]; then
 fi
 
 echo "[*] installing patched module as an overlay"
+distro_module_sign "${WORK}/snd-hda-codec-alc269.ko" "$KVER" || fatal "signing the module failed"
 zstd -19 -q --force "${WORK}/snd-hda-codec-alc269.ko" -o "${WORK}/${KO_NAME}"
 install -d -m 0755 "$UPDATES_DIR"
 install -m 0644 "${WORK}/${KO_NAME}" "$KO_OVERLAY"

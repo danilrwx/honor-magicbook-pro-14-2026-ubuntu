@@ -47,11 +47,32 @@ if command -v pacman >/dev/null 2>&1; then
         BUILD_HOME="$(getent passwd "$BUILD_USER" | cut -d: -f6)"
         [[ -n "$BUILD_HOME" ]] && u_rm "${BUILD_HOME}/.cache/honor-libfprint-build"
     fi
+elif command -v apt-get >/dev/null 2>&1; then
+    # The patched build is the distribution's own package with a +honor suffix,
+    # held. Unhold it and put the archive version back.
+    held="$(dpkg-query -W -f '${Package} ${Version}\n' 'libfprint-2-*' 2>/dev/null | awk '/\+honor/ {print $1}')"
+    if [[ -n "$held" ]]; then
+        u_log "Reinstalling the archive libfprint over the local build"
+        targets=()
+        for p in $held; do
+            v="$(apt-cache madison "$p" 2>/dev/null | awk '!/\+honor/ {print $3; exit}')"
+            [[ -n "$v" ]] && targets+=("${p}=${v}")
+        done
+        # shellcheck disable=SC2086
+        apt-mark unhold $held >/dev/null 2>&1 || true
+        if (( ${#targets[@]} )) && apt-get install -y --allow-downgrades "${targets[@]}" >/dev/null 2>&1; then
+            echo "    now at $(dpkg-query -W -f '${Version}' libfprint-2-2 2>/dev/null)"
+        else
+            u_fail "apt-get install failed; run it by hand: apt-get install --allow-downgrades ${targets[*]:-libfprint-2-2}"
+        fi
+    else
+        echo "    no held honor build of libfprint installed"
+    fi
 else
-    u_warn "This fix installs through the distribution's package manager on Arch
-    and by 'ninja install' into /usr elsewhere. Off Arch there is no record of
-    which files it wrote, so reinstall your distribution's libfprint package:
-        Debian/Ubuntu:  sudo apt-get install --reinstall libfprint-2-2
+    u_warn "This fix installs through the distribution's package manager on Arch,
+    Debian and Ubuntu, and by 'ninja install' into /usr elsewhere. There is no
+    record of which files that wrote, so reinstall your distribution's
+    libfprint package:
         Fedora:         sudo dnf reinstall libfprint"
 fi
 

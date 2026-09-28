@@ -27,10 +27,24 @@ wait_for_pacman() {
     return 1
 }
 
+# Debian and Ubuntu: the hook fires from inside the apt transaction, and the
+# xe rebuild installs linux-source through apt itself.
+wait_for_apt() {
+    local i
+    command -v fuser >/dev/null || return 0
+    for ((i = 0; i < 120; i++)); do
+        fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || return 0
+        sleep 5
+    done
+    w "dpkg still locked after 10 minutes, giving up"
+    return 1
+}
+
 case "$mode" in
 modules)
     w "=== deferred module rebuild: ${KVERS:-none} ==="
     wait_for_pacman || exit 0
+    wait_for_apt || exit 0
     for k in ${KVERS:-}; do
         if [[ ! -e "/usr/lib/modules/${k}/build/Makefile" ]]; then
             w "${k}: no kernel headers, skipped"

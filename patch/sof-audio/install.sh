@@ -95,10 +95,15 @@ req curl
 req zstdcat
 req zstd
 req make
-req clang
-req ld.lld
-req llvm-objcopy
 req patch
+# The module has to come from the same compiler family as the kernel.
+MAKEVARS=()
+if distro_kernel_config_has CONFIG_CC_IS_CLANG=y "$KVER"; then
+    MAKEVARS=(LLVM=1 LLVM_IAS=1)
+    req clang
+    req ld.lld
+    req llvm-objcopy
+fi
 req depmod
 req modprobe
 req modinfo
@@ -112,19 +117,14 @@ if [[ ! -f "$PATCH_FILE" ]]; then
     exit 1
 fi
 
-# Refuse to run if module signature enforcement is on — our rebuilt module
-# would not be loadable. Distros that flip this on (Secure Boot + lockdown,
-# CONFIG_MODULE_SIG_FORCE=y, or kernel cmdline module.sig_enforce=1) need
-# either MOK enrollment for a local signing key or the user to disable
-# enforcement before the overlay can take effect.
-if [[ -r /sys/kernel/security/lockdown ]] \
-   && grep -qE '\[(integrity|confidentiality)\]' /sys/kernel/security/lockdown; then
-    echo "[fatal] kernel lockdown is active — unsigned modules won't load." >&2
-    echo "        $(cat /sys/kernel/security/lockdown)" >&2
-    exit 1
-fi
-if grep -qE '\bmodule\.sig_enforce=1\b' /proc/cmdline; then
-    echo "[fatal] module.sig_enforce=1 in /proc/cmdline — unsigned modules won't load." >&2
+# The rebuilt module has to be loadable. Where the kernel enforces signatures
+# (Secure Boot + lockdown, CONFIG_MODULE_SIG_FORCE=y, module.sig_enforce=1) it
+# is signed below with the machine owner key; refuse only when that is not
+# possible either.
+if distro_unsigned_blocked && ! distro_can_sign "$KVER"; then
+    echo "[fatal] the kernel only loads signed modules and there is no way to sign here." >&2
+    echo "        $(cat /sys/kernel/security/lockdown 2>/dev/null)" >&2
+    echo "        Needs the kernel headers and, on Debian/Ubuntu, shim-signed." >&2
     exit 1
 fi
 
@@ -279,8 +279,8 @@ for f in "${WORK}/intel/common"/*; do
     install -m 0644 "$f" "${BUILD_DIR}/sound/soc/intel/common/$(basename "$f")"
 done
 
-echo "[*] building snd-sof.ko (LLVM toolchain)"
-( cd "$BUILD_DIR" && make LLVM=1 LLVM_IAS=1 \
+echo "[*] building snd-sof.ko (${MAKEVARS[*]:-gcc})"
+( cd "$BUILD_DIR" && make "${MAKEVARS[@]}" \
     M=sound/soc/sof modules ) 2>&1 | tail -12
 
 BUILT_KO="${BUILD_DIR}/sound/soc/sof/snd-sof.ko"
@@ -307,6 +307,7 @@ fi
 
 echo "[*] installing patched module to ${KO_OVERLAY}"
 install -d -m 0755 "$UPDATES_DIR"
+distro_module_sign "$BUILT_KO" "$KVER" || { echo "[fatal] signing the module failed" >&2; exit 1; }
 zstd -19 -q --force "$BUILT_KO" -o "${WORK}/${KO_NAME}"
 install -m 0644 "${WORK}/${KO_NAME}" "$KO_OVERLAY"
 depmod -a "$KVER"

@@ -181,7 +181,21 @@ log "installed $FW_PATH"
 # do not, and they stage firmware their own way, so on those this stops and says
 # what to do rather than editing a file that is not there. It used to run the
 # sed unguarded, which killed the script outright on every non-Arch machine.
-if [[ ! -f /etc/mkinitcpio.conf ]]; then
+if [[ -d /etc/initramfs-tools/hooks ]]; then
+    # Debian and Ubuntu: a hook copies the blob into every initramfs.
+    cat > /etc/initramfs-tools/hooks/honor-vbt <<EOF
+#!/bin/sh
+# Installed by patch/oled-backlight/install.sh: xe reads the VBT from the
+# initramfs, before the root filesystem is mounted.
+PREREQ=""
+prereqs() { echo "\$PREREQ"; }
+[ "\$1" = prereqs ] && { prereqs; exit 0; }
+. /usr/share/initramfs-tools/hook-functions
+copy_file firmware "$FW_PATH"
+EOF
+    chmod 0755 /etc/initramfs-tools/hooks/honor-vbt
+    log "installed /etc/initramfs-tools/hooks/honor-vbt"
+elif [[ ! -f /etc/mkinitcpio.conf ]]; then
     warn "no /etc/mkinitcpio.conf on this system ($(distro_family))."
     warn "The blob is installed at $FW_PATH and the kernel parameter is set, but"
     warn "the driver reads it before the root filesystem is mounted, so it also"

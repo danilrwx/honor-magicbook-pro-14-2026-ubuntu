@@ -116,7 +116,8 @@
 # platform::micmute LED follows via the audio-micmute trigger). No
 # keymap or udev/systemd plumbing is needed. See README for details.
 #
-# Targets: CachyOS / Arch-like systems with mkinitcpio + Limine.
+# Targets: CachyOS / Arch-like systems with mkinitcpio + Limine, and Ubuntu with
+# GRUB, Secure Boot included (see docs/UBUNTU.md).
 # Must be run as root.
 
 set -euo pipefail
@@ -159,6 +160,27 @@ source "$SCRIPT_DIR/lib/distro.sh"
 # because the ACPI override is applied from this file rather than from an
 # installer of its own.
 source "$SCRIPT_DIR/lib/variant.sh"
+
+# Secure Boot on Debian and Ubuntu: every module overlay below is signed with
+# the machine owner key that dkms uses, so the tools and the key have to exist
+# before the first build. See docs/UBUNTU.md.
+if [[ "$(distro_family)" == debian ]] && distro_secure_boot_on; then
+    distro_pkg_install mokutil shim-signed "linux-headers-$(uname -r)" >/dev/null 2>&1 \
+        || echo "    [warn] could not install mokutil, shim-signed or the kernel headers; module signing may fail"
+    [[ -r "$MOK_DIR/MOK.priv" ]] || update-secureboot-policy --new-key >/dev/null 2>&1 || true
+    if [[ -r "$MOK_DIR/MOK.der" ]] && ! distro_mok_enrolled; then
+        cat <<EOF
+Secure Boot is on, so the rebuilt kernel modules will be signed with the machine
+owner key in $MOK_DIR. The firmware has to learn that key once: choose a
+one-time password now, and after the reboot press a key as soon as the blue
+MokManager screen appears (it times out in seconds), pick 'Enroll MOK',
+'Continue', and enter that password.
+
+EOF
+        mokutil --import "$MOK_DIR/MOK.der" \
+            || echo "    [warn] enrolment failed; do it yourself: mokutil --import $MOK_DIR/MOK.der"
+    fi
+fi
 
 detect_profile "$SCRIPT_DIR/devices" && DETECT_RC=0 || DETECT_RC=$?
 
@@ -797,8 +819,8 @@ if ! fix_enabled fingerprint; then
     :
 elif [[ "${SKIP_FINGERPRINT:-0}" == "1" ]]; then
     echo "    skipped — SKIP_FINGERPRINT=1"
-elif ! command -v makepkg >/dev/null; then
-    echo "    skipped — makepkg not found, not a pacman system"
+elif ! command -v makepkg >/dev/null && ! command -v apt-get >/dev/null; then
+    echo "    skipped — neither pacman nor apt here; see patch/fingerprint/README.md"
 elif bash "$PATCH_DIR/fingerprint/install.sh"; then
     echo "    OK"
 else
@@ -876,16 +898,28 @@ fi
 echo "[18/18] Install the auto-rebuild package-manager hooks"
 if ! fix_enabled auto-rebuild; then
     :
-elif command -v pacman >/dev/null && bash "$PATCH_DIR/auto-rebuild/install.sh" >/dev/null; then
-    echo "    OK — kernel and libfprint updates will re-apply the fixes"
-elif ! command -v pacman >/dev/null; then
-    echo "    skipped — not a pacman system. Re-run patch/headset-mic/install.sh"
+elif { command -v pacman || command -v apt-get; } >/dev/null && bash "$PATCH_DIR/auto-rebuild/install.sh" >/dev/null; then
+    echo "    OK — kernel updates will re-apply the fixes"
+elif ! { command -v pacman || command -v apt-get; } >/dev/null; then
+    echo "    skipped — neither pacman nor apt. Re-run patch/headset-mic/install.sh"
     echo "    and patch/sof-audio/install.sh after every kernel update."
 else
     step_warn "hook install failed — the fixes still work, but a kernel"
     echo "    update will revert steps [9/18] and [10/18] until you re-run them."
     echo "    Step [7/18] is not hooked either: rerun it by hand after a"
     echo "    kernel update, or drop it once the fix lands upstream."
+fi
+
+if distro_secure_boot_on && [[ -r "$MOK_DIR/MOK.der" ]] \
+   && ! mokutil --test-key "$MOK_DIR/MOK.der" 2>/dev/null | grep -q 'already enrolled' \
+   && mokutil --list-new 2>/dev/null | grep -q .; then
+    cat <<EOF
+
+  Secure Boot: the module signing key is queued for enrolment. Right after
+  the reboot press a key when the blue MokManager screen appears (it times
+  out in seconds), choose 'Enroll MOK', 'Continue', and enter the password
+  you chose above. Without that the rebuilt modules will not load.
+EOF
 fi
 
 cat <<EOF

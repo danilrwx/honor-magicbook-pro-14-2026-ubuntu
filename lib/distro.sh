@@ -139,15 +139,86 @@ distro_module_suffix() {
     esac
 }
 
+# --- Secure Boot --------------------------------------------------------------
+#
+# With Secure Boot on the kernel is locked down and loads only signed modules.
+# Debian and Ubuntu keep a machine owner key for exactly this in
+# /var/lib/shim-signed/mok/: update-secureboot-policy makes it, dkms signs with
+# it. The overlays built here are signed with the same key, so one enrolment in
+# the firmware covers everything.
+
+MOK_DIR=/var/lib/shim-signed/mok
+
+distro_secure_boot_on() {
+    local v
+    v="$(find /sys/firmware/efi/efivars -maxdepth 1 -name 'SecureBoot-*' 2>/dev/null | head -1)"
+    [[ -n "$v" ]] || return 1
+    [[ "$(od -An -tu1 -j4 -N1 "$v" 2>/dev/null | tr -d ' ')" == 1 ]]
+}
+
+# Whether the running kernel refuses unsigned modules.
+distro_unsigned_blocked() {
+    { [[ -r /sys/kernel/security/lockdown ]] \
+        && grep -qE '\[(integrity|confidentiality)\]' /sys/kernel/security/lockdown; } \
+    || grep -qE '\bmodule\.sig_enforce=1\b' /proc/cmdline 2>/dev/null
+}
+
+# distro_can_sign [kver]: the signing tool and a key, or the means to make one.
+distro_can_sign() {
+    local kver="${1:-$(uname -r)}" dir
+    dir="$(distro_module_dir "$kver")" || return 1
+    [[ -x "${dir}/build/scripts/sign-file" ]] || return 1
+    [[ -r "${MOK_DIR}/MOK.priv" ]] || command -v update-secureboot-policy >/dev/null
+}
+
+# distro_mok_enrolled: the firmware knows the key, or its enrolment is queued.
+distro_mok_enrolled() {
+    command -v mokutil >/dev/null || return 1
+    mokutil --test-key "${MOK_DIR}/MOK.der" 2>/dev/null | grep -q 'already enrolled' && return 0
+    mokutil --list-new 2>/dev/null | grep -q .
+}
+
+# distro_module_sign <built.ko> [kver]
+# No-op unless Secure Boot is on. Otherwise signs the module in place with the
+# machine owner key, creating it on first use. Enrolment is not done here: it
+# asks for a password on the terminal, and installers are often run with their
+# output hidden. apply_patch.sh enrols up front; a lone installer says how.
+# Sign before compressing: the signature is part of the .ko, and the kernel
+# decompresses before it verifies.
+distro_module_sign() {
+    local ko="$1" kver="${2:-$(uname -r)}" dir sf
+    distro_secure_boot_on || return 0
+    dir="$(distro_module_dir "$kver")" || return 1
+    sf="${dir}/build/scripts/sign-file"
+    [[ -x "$sf" ]] || { _distro_warn "no $sf; install the headers for $kver and re-run"; return 1; }
+    if [[ ! -r "${MOK_DIR}/MOK.priv" ]]; then
+        command -v update-secureboot-policy >/dev/null || {
+            _distro_warn "Secure Boot is on and there is no machine owner key to sign with.
+    Install shim-signed and re-run."
+            return 1; }
+        _distro_say "creating a machine owner key in $MOK_DIR"
+        update-secureboot-policy --new-key >/dev/null 2>&1 \
+            || { _distro_warn "update-secureboot-policy --new-key failed"; return 1; }
+    fi
+    "$sf" sha512 "${MOK_DIR}/MOK.priv" "${MOK_DIR}/MOK.der" "$ko" || return 1
+    _distro_say "signed $(basename "$ko") with the machine owner key"
+    distro_mok_enrolled || _distro_warn "the signing key is not enrolled in the firmware, so the
+    module will not load until it is: run 'mokutil --import ${MOK_DIR}/MOK.der',
+    choose a one-time password, reboot, and enrol it in MokManager."
+    return 0
+}
+
 # distro_module_install <built.ko> <name> [kver]
-# Compresses to match the distribution and drops the result into the modules
-# updates/ overlay, which depmod searches before kernel/.
+# Signs where Secure Boot needs it, compresses to match the distribution and
+# drops the result into the modules updates/ overlay, which depmod searches
+# before kernel/.
 distro_module_install() {
     local built="$1" name="$2" kver="${3:-$(uname -r)}" dir suffix dest
     dir="$(distro_module_dir "$kver")" || { _distro_warn "no module tree for $kver"; return 1; }
     suffix="$(distro_module_suffix "$kver")"
     dest="${dir}/updates/${name}${suffix}"
     install -d "${dir}/updates"
+    distro_module_sign "$built" "$kver" || return 1
     case "$suffix" in
         .ko.zst) zstd -q -f -19 -T0 "$built" -o "$dest" ;;
         .ko.xz)  xz -T0 -c "$built" > "$dest" ;;
