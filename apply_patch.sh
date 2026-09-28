@@ -168,9 +168,10 @@ source "$SCRIPT_DIR/lib/variant.sh"
 # before the first build. See docs/UBUNTU.md.
 if [[ "$(distro_family)" == debian ]] && distro_secure_boot_on; then
     echo "Preflight: mokutil, shim-signed, dkms, kernel headers, clang, udev-hid-bpf"
-    # Non-interactive: a debconf question with the output hidden is a hang.
-    DEBIAN_FRONTEND=noninteractive distro_pkg_install mokutil shim-signed dkms "linux-headers-$(uname -r)" \
-        clang udev-hid-bpf 2>&1 | tail -3 \
+    # apt gets stopped (SIGTTOU) when it has real work to do and its output is
+    # piped or hidden, so it talks to the terminal directly.
+    DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a distro_pkg_install mokutil shim-signed dkms \
+        "linux-headers-$(uname -r)" clang udev-hid-bpf \
         || echo "    [warn] could not install the build tools; module signing and the HID-BPF fixes may fail"
     [[ -r "$MOK_DIR/MOK.priv" ]] || update-secureboot-policy --new-key >/dev/null 2>&1 || true
     if [[ -r "$MOK_DIR/MOK.der" ]] && ! distro_mok_enrolled; then
