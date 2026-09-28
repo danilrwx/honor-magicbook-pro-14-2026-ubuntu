@@ -224,7 +224,7 @@ if [[ "$FP_SOURCE" == "git" ]]; then
 
     # The distro path installs its build dependencies further down; this path
     # runs first and needs the same ones.
-    if command -v apt-get >/dev/null 2>&1 && ! command -v meson >/dev/null 2>&1; then
+    if command -v apt-get >/dev/null 2>&1; then
         log "Installing build dependencies (apt)"
         DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git meson ninja-build pkg-config \
             libglib2.0-dev libgusb-dev libnss3-dev libgudev-1.0-dev libgirepository1.0-dev \
