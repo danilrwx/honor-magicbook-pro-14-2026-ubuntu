@@ -118,9 +118,15 @@ bpftool btf dump file /sys/kernel/btf/vmlinux format c > "${WORK}/vmlinux.h"
 # --- 3. build -----------------------------------------------------------------
 log "building ${OBJ_NAME}"
 cp "$SRC" "${WORK}/"
+# Debian and Ubuntu keep asm/ under a multiarch directory that clang with
+# -target bpf does not search on its own.
+MULTIARCH_INC=()
+if ma="$(gcc -print-multiarch 2>/dev/null)" && [[ -d "/usr/include/${ma}" ]]; then
+    MULTIARCH_INC=(-idirafter "/usr/include/${ma}")
+fi
 clang -O2 -g -target bpf -mcpu=v3 -D__TARGET_ARCH_x86 \
       -DHID_VID="${HID_VID}" -DHID_PID="${HID_PID}" \
-      -I"$WORK" -Wno-missing-declarations \
+      -I"$WORK" "${MULTIARCH_INC[@]}" -Wno-missing-declarations \
       -c "${WORK}/$(basename "$SRC")" -o "${WORK}/${OBJ_NAME}" 2>&1 \
     | grep -vE "does not declare anything|^ *[0-9]+ \||^ +\^|In file included from|warnings? generated" \
     || true
