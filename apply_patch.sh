@@ -10,6 +10,8 @@
 #   SKIP_EDGE=1          leave the touchpad left-edge gesture dead
 #   SKIP_FAN=1           no fan RPM readout
 #   SKIP_FINGERPRINT=1   no libfprint rebuild (by far the slowest step)
+#   SKIP_HEADSET=1       no snd-hda-codec-alc269 rebuild (3.5 mm headset mic)
+#   SKIP_SOF=1           no snd-sof rebuild (preventive DSP resume fix)
 #   SKIP_CDCLK=1         no Panther Lake cdclk fix. On by default where the
 #   SKIP_DSC=1           profile lists it; both rebuild xe.ko, which downloads
 #                        the kernel source and compiles for a few minutes
@@ -743,6 +745,8 @@ distro_bootloader_update || step_warn "regenerate your bootloader config yoursel
 echo "[9/18] Apply ALC256 headset-mic quirk (snd-hda-codec-alc269 rebuild)"
 if ! fix_enabled headset-mic; then
     :
+elif [[ "${SKIP_HEADSET:-0}" == "1" ]]; then
+    echo "    skipped — SKIP_HEADSET=1"
 elif bash "$PATCH_DIR/headset-mic/install.sh"; then
     echo "    OK"
 else
@@ -767,6 +771,8 @@ fi
 echo "[10/18] Apply SOF IPC4 copier-payload refresh (snd-sof rebuild)"
 if ! fix_enabled sof-audio; then
     :
+elif [[ "${SKIP_SOF:-0}" == "1" ]]; then
+    echo "    skipped — SKIP_SOF=1"
 elif bash "$PATCH_DIR/sof-audio/install.sh"; then
     echo "    OK"
 else

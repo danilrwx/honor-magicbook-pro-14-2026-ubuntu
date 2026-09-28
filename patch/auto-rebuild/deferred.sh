@@ -74,8 +74,18 @@ modules)
         fi
 
         # hotkeys builds a module overlay too, so a kernel update drops it
-        # just like the two audio ones.
+        # just like the two audio ones. Only what is installed for some kernel
+        # is rebuilt: a fix that was skipped stays skipped.
         for fix in headset-mic sof-audio hotkeys; do
+            case "$fix" in
+                headset-mic) mod=snd-hda-codec-alc269 ;;
+                sof-audio)   mod=snd-sof ;;
+                hotkeys)     mod=huawei-wmi ;;
+            esac
+            if ! compgen -G "/usr/lib/modules/*/updates/${mod}.ko*" >/dev/null; then
+                w "${fix}: no overlay installed for any kernel, skipped"
+                continue
+            fi
             rc=0
             KVER="$k" bash "${REPO}/patch/${fix}/install.sh" >>"$LOG" 2>&1 || rc=$?
             case "$rc" in
