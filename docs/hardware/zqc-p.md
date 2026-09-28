@@ -697,3 +697,12 @@ phantom `KEY_MICMUTE` device came back. The symptom was reported returning on
 `M1050` and then reproduced on `M1010`. The installer now starts the unit and
 fails loudly if it cannot, and `tools/selftest.sh` checks that every unit in
 this repository runs a file its own installer puts there.
+
+## The unit this fork tracks
+
+Board M1010 with a Core Ultra 5 338H, BIOS 1.09, sold in Russia. Compared with
+upstream's X9 388H unit it has the EgisTec 1c7a:05aa reader (upstream records
+that one for board M1050, and the M1010 fingerprint recipe here points at it)
+and a Luxvisions 30c9:012c camera instead of 3277:00de. The SSDT27 table, the
+HID ids of the touchpad and touchscreen, and the audio SSID are identical, so
+the rest of the profile is upstream's.
