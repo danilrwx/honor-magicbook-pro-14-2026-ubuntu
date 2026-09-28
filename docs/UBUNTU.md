@@ -41,6 +41,17 @@ where Secure Boot is off.
 | auto-rebuild | skipped on apt; hooks would run the user's checkout as root | installed; hooks run a root-owned copy in `/usr/local/lib/honor/repo` |
 | `/var/tmp/honor-xe` | reused whatever was there | root-owned, mode 0700, refuses a tree owned by anyone else |
 
+## What hangs this unit
+
+`patch/headset-mic/` builds a monolithic `snd-hda-codec-alc269` from upstream's
+`alc269.c`. The 7.0 kernel splits the Realtek codecs into per-codec modules on
+top of `snd-hda-codec-realtek-lib`, and the overlay hangs the machine hard,
+without a panic, shortly after the root filesystem is up. Bisected by booting
+with one overlay at a time: the VBT and `snd-sof` overlays boot fine, `alc269`
+alone hangs. Run with `SKIP_HEADSET=1` until the fix is redone for the split
+layout. Recovery from a hang: recovery mode, delete
+`/usr/lib/modules/<kver>/updates/snd-hda-codec-alc269.ko.zst`, `depmod -a`.
+
 `apt-get source` needs `deb-src`; `patch/fingerprint/install.sh` adds it to
 `/etc/apt/sources.list.d/*.sources` if missing. The held packages are
 `libfprint-2-2` and `libfprint-2-tod1`; `apt-mark unhold` them once the archive
