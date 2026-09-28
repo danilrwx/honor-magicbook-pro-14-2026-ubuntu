@@ -228,7 +228,7 @@ if [[ "$FP_SOURCE" == "git" ]]; then
         log "Installing build dependencies (apt)"
         DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git meson ninja-build pkg-config \
             libglib2.0-dev libgusb-dev libnss3-dev libgudev-1.0-dev libgirepository1.0-dev \
-            gobject-introspection libcairo2-dev libpixman-1-dev libpolkit-gobject-1-dev
+            gobject-introspection libcairo2-dev libpixman-1-dev libpolkit-gobject-1-dev libssl-dev
     fi
     for t in git meson ninja pkg-config; do
         command -v "$t" >/dev/null || die "missing build tool: $t"

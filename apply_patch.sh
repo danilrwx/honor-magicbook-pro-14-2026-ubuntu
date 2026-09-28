@@ -171,7 +171,7 @@ if [[ "$(distro_family)" == debian ]] && distro_secure_boot_on; then
     # apt gets stopped (SIGTTOU) when it has real work to do and its output is
     # piped or hidden, so it talks to the terminal directly.
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a distro_pkg_install mokutil shim-signed dkms \
-        "linux-headers-$(uname -r)" clang udev-hid-bpf \
+        "linux-headers-$(uname -r)" clang libbpf-dev bpftool udev-hid-bpf \
         || echo "    [warn] could not install the build tools; module signing and the HID-BPF fixes may fail"
     [[ -r "$MOK_DIR/MOK.priv" ]] || update-secureboot-policy --new-key >/dev/null 2>&1 || true
     if [[ -r "$MOK_DIR/MOK.der" ]] && ! distro_mok_enrolled; then
