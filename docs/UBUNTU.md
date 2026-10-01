@@ -10,7 +10,7 @@ With Secure Boot on the kernel is locked down and loads only signed modules.
 Two consequences:
 
 - **Modules are signed.** Every overlay this repository builds (`xe`,
-  `huawei-wmi`, `snd-hda-codec-alc269`, `snd-sof`) is signed with the machine
+  `huawei-wmi`, `snd-sof`) is signed with the machine
   owner key in `/var/lib/shim-signed/mok/`, the same key dkms uses for
   `honor-ec-sensors`. `apply_patch.sh` creates the key if there is none and
   queues its enrolment with the one-time password `0000` (`MOK_PASSWORD=`
@@ -34,23 +34,37 @@ where Secure Boot is off.
 | Area | Before | Now |
 |---|---|---|
 | `xe.ko` source | vanilla tarball from kernel.org, which misses Ubuntu's drm patches | the `linux-source` package, the tree the archive kernel was built from |
-| Compiler for `snd-sof`, `alc269` | clang forced | whatever built the kernel (`CONFIG_CC_IS_CLANG`), gcc on Ubuntu |
+| Compiler for `snd-sof` | clang forced | whatever built the kernel (`CONFIG_CC_IS_CLANG`), gcc on Ubuntu |
 | `sof-audio` under lockdown | refused | signs the module instead, refuses only if it cannot |
 | OLED backlight VBT | blob outside the initramfs, fix inert | `/etc/initramfs-tools/hooks/honor-vbt` copies it in |
 | Fingerprint | `ninja install` of upstream master into `/usr`, off dpkg and off the multiarch path | `apt-get source libfprint`, the patch on top, `dpkg-buildpackage`, install, `apt-mark hold` |
 | auto-rebuild | skipped on apt; hooks would run the user's checkout as root | installed; hooks run a root-owned copy in `/usr/local/lib/honor/repo` |
 | `/var/tmp/honor-xe` | reused whatever was there | root-owned, mode 0700, refuses a tree owned by anyone else |
 
-## What hangs this unit
+## What hung this unit
 
-`patch/headset-mic/` builds a monolithic `snd-hda-codec-alc269` from upstream's
-`alc269.c`. The 7.0 kernel splits the Realtek codecs into per-codec modules on
-top of `snd-hda-codec-realtek-lib`, and the overlay hangs the machine hard,
-without a panic, shortly after the root filesystem is up. Bisected by booting
-with one overlay at a time: the VBT and `snd-sof` overlays boot fine, `alc269`
-alone hangs. Run with `SKIP_HEADSET=1` until the fix is redone for the split
-layout. Recovery from a hang: recovery mode, delete
+Earlier revisions of `patch/headset-mic/` built a monolithic
+`snd-hda-codec-alc269` from upstream's `alc269.c`. The 7.0 kernel splits the
+Realtek codecs into per-codec modules on top of `snd-hda-codec-realtek-lib`, and
+that overlay hung the machine hard, without a panic, shortly after the root
+filesystem was up. Bisected by booting with one overlay at a time: the VBT and
+`snd-sof` overlays boot fine, `alc269` alone hangs. The fix is now the stock
+`alc255-dell2` model as a modprobe option, no module at all, and `install.sh`
+deletes an old overlay it finds. Recovery from a hang with an old revision:
+recovery mode, delete
 `/usr/lib/modules/<kver>/updates/snd-hda-codec-alc269.ko.zst`, `depmod -a`.
+
+## Do not purge grub-pc
+
+On a machine that moved from `grub-pc` to `grub-efi`, `grub-pc` lingers in the
+`rc` state, and `dpkg --purge grub-pc` (a routine cleanup of removed packages)
+deletes `/etc/default/grub`. That file carries everything this repository puts
+on the command line (`i8042.dumbkbd=1`, `xe.enable_psr=1`, `xe.vbt_firmware=`)
+and `GRUB_EARLY_INITRD_LINUX_CUSTOM="acpi_override.cpio"`. The next
+`update-grub`, which any kernel install or removal runs, writes a `grub.cfg`
+without them, and the boot after that has no touchpad, no internal keyboard and
+the stock VBT. Restore from `/usr/share/grub/default/grub` and re-run
+`apply_patch.sh` (or put the lines back by hand), then `update-grub`.
 
 `apt-get source` needs `deb-src`; `patch/fingerprint/install.sh` adds it to
 `/etc/apt/sources.list.d/*.sources` if missing. The held packages are

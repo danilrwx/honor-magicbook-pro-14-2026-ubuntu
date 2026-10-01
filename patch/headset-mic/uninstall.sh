@@ -8,12 +8,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/../../lib/uninstall.sh"
 
-u_log "Removing the codec overlay and the capture-priority rule"
-u_rm "/usr/lib/modules/${KVER}/updates/snd-hda-codec-alc269.ko.zst" \
+u_log "Removing the codec model option, any old codec overlay and the capture-priority rule"
+u_rm /etc/modprobe.d/honor-headset-mic.conf \
+     "/usr/lib/modules/${KVER}/updates/snd-hda-codec-alc269.ko.zst" \
      "/usr/lib/modules/${KVER}/updates/snd-hda-codec-alc269.ko" \
      /etc/wireplumber/wireplumber.conf.d/51-honor-mic-priority.conf \
      /etc/wireplumber/wireplumber.conf.d/51-honor-zqcp-mic-priority.conf \
-  || echo "    no overlay installed for ${KVER}"
+  || echo "    nothing installed for ${KVER}"
 rmdir --ignore-fail-on-non-empty \
       /etc/wireplumber/wireplumber.conf.d /etc/wireplumber 2>/dev/null || true
 
@@ -35,7 +36,7 @@ u_rm /etc/systemd/system/honor-mic-jack-init.service \
 u_daemon_reload
 u_depmod
 
-echo "    the 3.5 mm jack microphone stops working. The built-in array is"
+echo "    after a reboot the 3.5 mm jack microphone stops working. The built-in array is"
 echo "    unaffected, and the mic-mute LED goes back to following it, which is"
 echo "    the side effect the WirePlumber rule above existed to undo."
 u_done

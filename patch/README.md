@@ -67,7 +67,7 @@ on several of them the honest answer is that nothing here applies at all. See
 | Touchpad, touchscreen, internal keyboard | works | [`acpi-override/`](acpi-override/) — patched SSDT27 plus `i8042.dumbkbd=1`. **Prerequisite for a usable machine** |
 | Microphone mutes itself, mic-mute LED flickers | works | [`micmute/`](micmute/) — HID-BPF fixup for the touchscreen's vendor collection |
 | Fingerprint reader, Goodix `27c6:6f94` | works | [`fingerprint/`](fingerprint/) — two-line `libfprint` id patch |
-| Headset microphone, 3.5 mm jack | works | [`headset-mic/`](headset-mic/) — one-line `SND_PCI_QUIRK` for ALC256 |
+| Headset microphone, 3.5 mm jack | works | [`headset-mic/`](headset-mic/) — the stock `alc255-dell2` model as a modprobe option, no rebuild |
 | OLED minimum brightness too low, uneven steps | works | [`oled-backlight/`](oled-backlight/) — patched VBT raises the firmware's backlight floor |
 | Faint wide band follows the mouse pointer | works | [`psr-band/`](psr-band/) — PSR2 selective update can only refresh whole scanlines, so every partial update is a full-width band; limits PSR to PSR1, which has none |
 | Touchpad left-edge slide does nothing | works | [`touchpad-edge/`](touchpad-edge/) — HID-BPF turns the vendor gesture report into brightness keys |
@@ -140,20 +140,19 @@ hand. `apply_patch.sh` installs it as its last step.
 | `touchpad-edge/` | nothing, the BPF object is CO-RE | — |
 | `oled-backlight/` | nothing on a kernel update; a **BIOS** update invalidates the blob | re-run `install.sh` |
 | `fan/` | rebuilt automatically | DKMS |
-| `headset-mic/` | a kernel update leaves the new kernel without the overlay | `auto-rebuild/` hook |
+| `headset-mic/` | nothing, it is a modprobe option for the packaged module | — |
 | `sof-audio/` | same | `auto-rebuild/` hook |
 | `fingerprint/` | a libfprint update replaces the patched package | `auto-rebuild/` hook |
 | `battery/` | a desktop battery applet can overwrite the armed pair | the installed units re-apply it at boot and resume |
 | `hotkeys/` | a kernel update leaves the new kernel without the overlay | `auto-rebuild/` hook |
 | `cdclk-ptl/` | a kernel update leaves the new kernel without the overlay | re-run `install.sh`, deliberately not hooked |
 
-Without the hooks, re-run `headset-mic/install.sh` and `sof-audio/install.sh`
-after every kernel update, and `fingerprint/install.sh` after every libfprint
+Without the hooks, re-run `sof-audio/install.sh` after every kernel update, and `fingerprint/install.sh` after every libfprint
 update.
 
 On a rolling distribution you will regularly have a kernel installed but not
 yet booted, at which point the running kernel's headers no longer exist and
-nothing can build. `fan/`, `headset-mic/` and `sof-audio/` accept a `KVER`
+nothing can build. `fan/` and `sof-audio/` accept a `KVER`
 override to pre-build for the installed kernel instead:
 
 ```sh

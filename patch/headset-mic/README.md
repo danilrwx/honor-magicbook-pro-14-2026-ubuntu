@@ -1,4 +1,4 @@
-# Headset microphone on the 3.5 mm jack — ALC256 quirk
+# Headset microphone on the 3.5 mm jack — ALC256 model option
 
 Working: the jack's microphone is captured cleanly.
 
@@ -16,35 +16,61 @@ mic pin unconfigured.
 
 ## The fix
 
-A one-line `SND_PCI_QUIRK` adding `1ee7:209d` with `ALC2XX_FIXUP_HEADSET_MIC`,
-the same fixup used by other machines with this pin layout:
+What this board needs is pin `0x19` as a headset microphone without its own
+jack detect (`0x01a1913c`), chained into the kernel's headset-mode lifecycle
+(`alc_fixup_headset_mode` on probe, init and resume). The stock `alc269` driver
+already carries exactly that as a named model, `alc255-dell2`
+(`ALC255_FIXUP_DELL2_MIC_NO_PRESENCE` → `ALC255_FIXUP_HEADSET_MODE_NO_HP_MIC`,
+which also sets the CTIA jack type), so no code is needed, only a module option
+naming it:
 
 ```sh
-sudo bash patch/headset-mic/install.sh
+sudo bash patch/headset-mic/install.sh     # then reboot
 ```
 
-The installer fetches the running kernel's `alc269.c` from the upstream stable
-tree, applies the patch, builds the codec module out-of-tree, and installs it
-over the in-tree one — backing up the original so `uninstall_patch.sh` can
-restore it. It detects an already-present entry and skips the rebuild, so it
-becomes a no-op once the quirk lands upstream.
+It writes `/etc/modprobe.d/honor-headset-mic.conf`:
 
-Re-run after every kernel update.
+```
+options snd_sof_intel_hda_generic hda_model=alc255-dell2
+options snd_hda_intel model=alc255-dell2
+```
+
+The first line is the one that matters: on this machine the codec sits behind
+the SOF driver, whose `hda_model=` is handed to the codec as its model name. The
+second covers a legacy `snd-hda-intel` boot (`snd_intel_dspcfg.dsp_driver=1`).
+The HDMI codec has no models and ignores the option.
+
+The codec module stays the signed in-tree one: nothing to build or sign, and
+nothing to redo after a kernel update. The option only takes effect at boot.
+Under SOF the codec cannot be re-probed live, `hwC0D0/reconfig` returns
+`EBUSY`.
+
+Earlier revisions of this fix rebuilt a monolithic `snd-hda-codec-alc269` with a
+new `SND_PCI_QUIRK`. On 7.0, where the Realtek codecs are split into per-codec
+modules on top of `snd-hda-codec-realtek-lib`, that overlay hangs the machine
+at boot. `install.sh` removes any such overlay it finds (and restores an
+in-place backup from the revision before that), so rerunning it is the upgrade
+path.
 
 ## Verified
 
-Pin `0x19` comes up as the headset microphone and voice was captured cleanly on
-the physical device.
+On a ZQC-P M1010 (Core Ultra 5 338H), kernel 7.0.0-34, 2026-10-01: after a
+reboot `/sys/class/sound/hwC0D0/modelname` reads `alc255-dell2`,
+`driver_pin_configs` has `0x19 0x01a1913c`, PipeWire lists the jack as
+`sof-hda-dsp Stereo Microphone` next to the digital array, and a headset
+microphone records. `tools/status.sh` checks the first two.
 
 ## Upstream
 
 This is the most obviously upstreamable change in the repo — a single table
 entry, exactly like the hundreds already in that file. It should be submitted
-to `alsa-devel`; once merged, drop this directory.
+to `alsa-devel`; once merged, drop this directory. `zqc-p/M1010/alc269-headset-mic.patch`
+is that entry (with its own fixup body; pointing the quirk at the existing
+`ALC255_FIXUP_DELL2_MIC_NO_PRESENCE` would do the same in one line).
 
 ## Default capture source and the mic-mute LED
 
-The quirk sets pin `0x19` to `0x01a1913c`, which includes `JACK_DETECT_OVERRIDE`
+The model sets pin `0x19` to `0x01a1913c`, which includes `JACK_DETECT_OVERRIDE`
 because this codec reports no jack presence for that pin. The port is therefore
 always "available", and WirePlumber ranked the resulting source above the
 built-in microphone array:
@@ -105,17 +131,8 @@ control-LED design covers "whichever mic the desktop is currently using".
 
 ## Surviving kernel updates
 
-The rebuilt module is installed as `/usr/lib/modules/$KVER/updates/snd-hda-codec-alc269.ko.zst`,
-an overlay `depmod` prefers over the packaged one, so a kernel update never
-overwrites it. It does leave the *new* kernel without an overlay, which is what
-the pacman hook in [`../auto-rebuild/`](../auto-rebuild/) fills in
-automatically. Without that hook, re-run `install.sh` after every kernel
-update, or pre-build with `KVER=` for a kernel that is installed but not yet
-booted.
-
-Earlier revisions installed the module *over* the packaged one. `install.sh`
-detects that, restores the pristine file when the backup matches the kernel,
-and switches to the overlay.
+Nothing to do: the option lives in `/etc/modprobe.d/` and applies to whatever
+kernel boots, and the codec module is the packaged one.
 
 ---
 
@@ -130,7 +147,7 @@ machine:
 | `1ee7:2078` | HONOR BRB-X M1010 | `ALC2XX_FIXUP_HEADSET_MIC` | v6.17, commit `b26e2afb3834` |
 | `1ee7:2081` | HONOR MRB-XXX M1020 | a board-specific pin table | v7.1, commit `d9448dca4235` |
 
-So `1ee7:209d` is a genuine gap, and this module overlay will be needed until
+So `1ee7:209d` is a genuine gap, and the model option will be needed until
 somebody sends the one-line patch.
 
 Both precedents are useful, and the first one especially: it was accepted from

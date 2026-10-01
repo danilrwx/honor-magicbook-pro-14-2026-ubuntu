@@ -10,7 +10,7 @@
 #   SKIP_EDGE=1          leave the touchpad left-edge gesture dead
 #   SKIP_FAN=1           no fan RPM readout
 #   SKIP_FINGERPRINT=1   no libfprint rebuild (by far the slowest step)
-#   SKIP_HEADSET=1       no snd-hda-codec-alc269 rebuild (3.5 mm headset mic)
+#   SKIP_HEADSET=1       no alc255-dell2 codec model option (3.5 mm headset mic)
 #   SKIP_SOF=1           no snd-sof rebuild (preventive DSP resume fix)
 #   SKIP_CDCLK=1         no Panther Lake cdclk fix. On by default where the
 #   SKIP_DSC=1           profile lists it; both rebuild xe.ko, which downloads
@@ -29,10 +29,10 @@
 #      (see README for the trade-off with Caps Lock LED).
 #   3) Analog 3.5mm-jack headset microphone unusable — PCI SSID 1ee7:209d
 #      is missing from sound/hda/codecs/realtek/alc269.c quirk table.
-#      Step [9/18] rebuilds snd-hda-codec-alc269.ko with the SND_PCI_QUIRK
-#      entry our hardware needs (matches the existing HONOR BRB-X M1010
-#      sibling); see patch/headset-mic/install.sh and the upstream patch
-#      at patch/headset-mic/zqc-p/M1010/alc269-headset-mic.patch.
+#      Step [9/18] names the stock alc255-dell2 model in a modprobe option
+#      (pin 0x19 as a headset mic without jack detect, headset mode); see
+#      patch/headset-mic/install.sh and the upstream patch at
+#      patch/headset-mic/zqc-p/M1010/alc269-headset-mic.patch.
 #   4) PREVENTIVE — SOF DSP IPC4 copier stale-payload race on suspend/
 #      resume. On Intel Panther Lake the IPC4 copier widget's
 #      ipc_config_data buffer is cached at first ipc_prepare and reused;
@@ -303,7 +303,7 @@ for d in /usr/lib/modules/*/ /lib/modules/*/; do
     [[ "$(printf '%s\n%s\n' "$NEWEST" "$k" | sort -V | tail -1)" == "$k" ]] && NEWEST="$k"
 done
 
-MODULE_STEPS="[7/18] cdclk-ptl + edp-dsc, [9/18] headset-mic, [10/18] sof-audio, [13/18] fan, [16/18] hotkeys"
+MODULE_STEPS="[7/18] cdclk-ptl + edp-dsc, [10/18] sof-audio, [13/18] fan, [16/18] hotkeys"
 
 if [[ ! -e "${KDIR_RUNNING}/Makefile" ]]; then
     echo
@@ -739,16 +739,12 @@ distro_initramfs_rebuild || step_warn "rebuild the initramfs yourself before reb
 distro_bootloader_update || step_warn "regenerate your bootloader config yourself before rebooting"
 
 #────────────────────────────────────────────────────────────────────────
-# [9/18] Build + install ALC256 codec quirk for the 3.5mm-jack headset mic.
-# Fetches the running kernel's alc269.c from the upstream stable tree,
-# adds SND_PCI_QUIRK(0x1ee7, 0x209d, "HONOR ZQC-P M1010", …) — pin 0x19
-# is wired to the combo jack mic on this board, identical to the existing
-# BRB-X M1010 sibling — and replaces /lib/modules/.../snd-hda-codec-alc269.ko.zst.
-# Original is backed up to /root/snd-hda-codec-alc269.ko.zst.orig.
-# The script is idempotent: if the in-tree module already carries the
-# quirk (e.g. after upstream merge), it exits without rebuilding.
+# [9/18] ALC256 headset mic on the 3.5mm jack: /etc/modprobe.d option naming
+# the stock alc255-dell2 model (pin 0x19 = 0x01a1913c, headset mode), no
+# module rebuild. Also removes the rebuilt snd-hda-codec-alc269 overlay of
+# earlier revisions, which hangs 7.0 kernels at boot. Needs a reboot.
 #────────────────────────────────────────────────────────────────────────
-echo "[9/18] Apply ALC256 headset-mic quirk (snd-hda-codec-alc269 rebuild)"
+echo "[9/18] Apply ALC256 headset-mic model (modprobe option)"
 if ! fix_enabled headset-mic; then
     :
 elif [[ "${SKIP_HEADSET:-0}" == "1" ]]; then
@@ -756,7 +752,7 @@ elif [[ "${SKIP_HEADSET:-0}" == "1" ]]; then
 elif bash "$PATCH_DIR/headset-mic/install.sh"; then
     echo "    OK"
 else
-    step_warn "ALC256 quirk install failed — touchpad/touchscreen fix is"
+    step_warn "ALC256 model option failed — touchpad/touchscreen fix is"
     echo "    still applied; only the analog headset mic on the 3.5mm jack will"
     echo "    stay unavailable. Inspect patch/headset-mic/install.sh output above."
 fi
@@ -927,8 +923,8 @@ fi
 
 #────────────────────────────────────────────────────────────────────────
 # [18/18] Install package-manager hooks that re-apply the fixes a package update
-# would otherwise revert: a kernel update replaces the modules patched in
-# steps [9/18] and [10/18], and a libfprint update drops the fingerprint
+# would otherwise revert: a kernel update replaces the module patched in
+# step [10/18], and a libfprint update drops the fingerprint
 # patch. The hooks rebuild them automatically. Arch-like systems only.
 #────────────────────────────────────────────────────────────────────────
 echo "[18/18] Install the auto-rebuild package-manager hooks"
@@ -937,11 +933,11 @@ if ! fix_enabled auto-rebuild; then
 elif { command -v pacman || command -v apt-get; } >/dev/null && bash "$PATCH_DIR/auto-rebuild/install.sh" >/dev/null; then
     echo "    OK — kernel updates will re-apply the fixes"
 elif ! { command -v pacman || command -v apt-get; } >/dev/null; then
-    echo "    skipped — neither pacman nor apt. Re-run patch/headset-mic/install.sh"
-    echo "    and patch/sof-audio/install.sh after every kernel update."
+    echo "    skipped — neither pacman nor apt. Re-run patch/sof-audio/install.sh"
+    echo "    after every kernel update."
 else
     step_warn "hook install failed — the fixes still work, but a kernel"
-    echo "    update will revert steps [9/18] and [10/18] until you re-run them."
+    echo "    update will revert step [10/18] until you re-run it."
     echo "    Step [7/18] is not hooked either: rerun it by hand after a"
     echo "    kernel update, or drop it once the fix lands upstream."
 fi
@@ -982,10 +978,11 @@ After reboot, verify:
   cat /sys/class/leds/platform::micmute/trigger
     expect: contains [audio-micmute]
 
-  # 3.5mm-jack headset mic — should appear once you plug in a CTIA-wired
-  # headset and PipeWire/wireplumber rescans:
-  pactl list short sources | grep -i headset
-    expect: a HiFi__Headset__source endpoint
+  # 3.5mm-jack headset mic — after the reboot:
+  cat /sys/class/sound/hwC0D0/modelname
+    expect: alc255-dell2
+  wpctl status | sed -n '/Sources:/,/Filters/p'
+    expect: a Stereo Microphone next to the Digital Microphone (the default)
 
   # SOF DSP IPC4 fix — verify the overlay loaded instead of the in-tree one:
   modinfo -F filename snd_sof
@@ -1015,9 +1012,9 @@ After reboot, verify:
   cat /sys/class/leds/platform::micmute/brightness
     expect: brightness=0 when the mic is meant to be active
 
-  # After every kernel update, re-run patch/headset-mic/install.sh and
-  # patch/sof-audio/install.sh so the codec quirk and the SOF overlay are
-  # rebuilt against the new headers. patch/micmute/ needs nothing.
+  # After every kernel update, re-run patch/sof-audio/install.sh so the SOF
+  # overlay is rebuilt against the new headers. patch/headset-mic/ and
+  # patch/micmute/ need nothing.
 EOF
 
 if (( ! STEP_WARNINGS )) && [[ "$APPLY_REV" != unknown ]]; then

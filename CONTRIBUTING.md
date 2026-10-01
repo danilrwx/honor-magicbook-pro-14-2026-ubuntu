@@ -236,10 +236,10 @@ HONOR_ZQC-P_M1010/
 │   │   ├── zqc-p/M1010/            #   HID-BPF descriptor fixup + recipe
 │   │   ├── zqc-p/M1050/            #   same_as=zqc-p/M1010
 │   │   └── install.sh              #   build + install via udev-hid-bpf
-│   ├── headset-mic/                # ALC256 quirk for PCI SSID 1ee7:209d
-│   │   ├── zqc-p/M1010/            #   the alc269.c change, for reference
+│   ├── headset-mic/                # ALC256 model for PCI SSID 1ee7:209d
+│   │   ├── zqc-p/M1010/            #   the model name + the alc269.c quirk for upstream
 │   │   ├── zqc-p/M1050/            #   same_as=zqc-p/M1010
-│   │   └── install.sh              #   build+install snd-hda-codec-alc269.ko
+│   │   └── install.sh              #   modprobe option hda_model=
 │   ├── sof-audio/                  # preventive IPC4 backport (PR #5762)
 │   │   ├── zqc-p/M1010/
 │   │   ├── zqc-p/M1050/

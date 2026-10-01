@@ -32,7 +32,7 @@ key you enrol once at the next boot; see [docs/UBUNTU.md](docs/UBUNTU.md).
 | Touchpad, touchscreen, internal keyboard | works | [`patch/acpi-override/`](patch/acpi-override/) — patched SSDT27 plus `i8042.dumbkbd=1`. **Prerequisite for a usable machine** |
 | Microphone mutes itself, mic-mute LED flickers | works | [`patch/micmute/`](patch/micmute/) — HID-BPF fixup for the touchscreen's vendor collection |
 | Fingerprint reader, Goodix `27c6:6f94` | works | [`patch/fingerprint/`](patch/fingerprint/) — two-line `libfprint` id patch |
-| Headset microphone, 3.5 mm jack | works | [`patch/headset-mic/`](patch/headset-mic/) — one-line `SND_PCI_QUIRK` for ALC256 |
+| Headset microphone, 3.5 mm jack | works | [`patch/headset-mic/`](patch/headset-mic/) — the stock `alc255-dell2` model as a modprobe option, no rebuild |
 | OLED minimum brightness too low, uneven steps | works | [`patch/oled-backlight/`](patch/oled-backlight/) — patched VBT raises the firmware's backlight floor |
 | Faint wide band follows the mouse pointer | works | [`patch/psr-band/`](patch/psr-band/) — PSR2 selective update can only refresh whole scanlines, so every partial update is a full-width band; limits PSR to PSR1, which has none |
 | Touchpad left-edge slide (brightness gesture) | works | [`patch/touchpad-edge/`](patch/touchpad-edge/) — HID-BPF turns the vendor gesture report into brightness keys. The right edge (volume) goes through the EC and works unaided |
@@ -149,7 +149,7 @@ plainly when that is not one the profile describes.
 | `SKIP_EDGE=1` | leave the touchpad left-edge brightness gesture dead |
 | `SKIP_FAN=1` | no fan RPM readout |
 | `SKIP_FINGERPRINT=1` | no `libfprint` rebuild, by far the slowest step |
-| `SKIP_HEADSET=1` | no `snd-hda-codec-alc269` rebuild for the 3.5 mm headset mic |
+| `SKIP_HEADSET=1` | no codec model option for the 3.5 mm headset mic |
 | `SKIP_SOF=1` | no `snd-sof` rebuild, the preventive DSP resume fix |
 | `VBT_MIN=<n>` | backlight floor in n/255, default 12. Measure yours first with `patch/oled-backlight/measure-floor.sh` |
 | `SKIP_CDCLK=1` | leave the Panther Lake cdclk fix out of the `xe.ko` rebuild |

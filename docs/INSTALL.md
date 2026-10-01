@@ -23,7 +23,7 @@ affected.
 | 6 | Runs `patch/oled-backlight/install.sh` — patched VBT, `FILES=` entry and `xe.vbt_firmware=` on the cmdline |
 | 7 | Rebuilds `xe.ko` into the `updates/` overlay through `lib/xe-build.sh`, carrying every patch that lives inside that module: the Panther Lake cdclk fix (`patch/cdclk-ptl/install.sh`, `SKIP_CDCLK=1` to leave it out) and the eDP DSC preference (`patch/edp-dsc/install.sh`, `SKIP_DSC=1` to leave it out). Runs where the profile lists them |
 | 8 | Regenerates the initramfs and the bootloader config, once, after all the config edits |
-| 9 | Runs `patch/headset-mic/install.sh` — rebuilds `snd-hda-codec-alc269.ko` with the ALC256 quirk for PCI SSID `1ee7:209d` |
+| 9 | Runs `patch/headset-mic/install.sh` — `/etc/modprobe.d` option naming the stock `alc255-dell2` codec model for PCI SSID `1ee7:209d`, no rebuild |
 | 10 | Runs `patch/sof-audio/install.sh` — builds `snd-sof.ko` with the IPC4 backport into the `updates/` overlay |
 | 11 | Runs `patch/micmute/install.sh` — builds and installs the HID-BPF descriptor fixup through `udev-hid-bpf` |
 | 12 | Runs `patch/touchpad-edge/install.sh` — HID-BPF program for the left-edge brightness gesture |

@@ -48,7 +48,7 @@ case "$HOOK_STYLE" in
     arch)   command -v pacman >/dev/null || die "pacman not found" ;;
     debian) [[ -d /etc/kernel ]] || die "no /etc/kernel; cannot install a kernel hook" ;;
     *)      die "No kernel-update hook mechanism is known for this distribution.
-    Re-run the installers in patch/headset-mic/ and patch/sof-audio/ after each
+    Re-run the installers in patch/sof-audio/ and patch/hotkeys/ after each
     kernel update by hand." ;;
 esac
 
@@ -116,14 +116,14 @@ chmod 0644 "$CONF"
 if [[ "$HOOK_STYLE" == arch ]]; then
     INSTALLED_HOOKS="  ${HOOK_DIR}/95-honor-kernel-modules.hook
   ${HOOK_DIR}/96-honor-libfprint.hook"
-    WHAT_IS_HOOKED="  From now on a kernel update rebuilds patch/headset-mic/ and
-  patch/sof-audio/ for the new kernel automatically, and a libfprint
+    WHAT_IS_HOOKED="  From now on a kernel update rebuilds patch/sof-audio/ and
+  patch/hotkeys/ for the new kernel automatically, and a libfprint
   update re-applies patch/fingerprint/ shortly after the transaction."
     UNINSTALL_HOOKS="${HOOK_DIR}/9[56]-honor-*.hook"
 else
     INSTALLED_HOOKS="  ${HOOK_DIR}/95-honor-kernel-modules"
-    WHAT_IS_HOOKED="  From now on a kernel update rebuilds patch/headset-mic/ and
-  patch/sof-audio/ for the new kernel automatically.
+    WHAT_IS_HOOKED="  From now on a kernel update rebuilds patch/sof-audio/ and
+  patch/hotkeys/ for the new kernel automatically.
 
   There is NO libfprint hook on this distribution: a libfprint upgrade is
   not a kernel event, so re-run patch/fingerprint/install.sh by hand after

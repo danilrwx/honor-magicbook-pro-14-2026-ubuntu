@@ -14,7 +14,6 @@ sudo bash patch/auto-rebuild/install.sh
 
 | Fix | Lives in | Replaced by |
 |---|---|---|
-| [`headset-mic/`](../headset-mic/) | `snd-hda-codec-alc269.ko` | any kernel package update |
 | [`sof-audio/`](../sof-audio/) | `snd-sof.ko` | any kernel package update |
 | [`hotkeys/`](../hotkeys/) | `huawei-wmi.ko` | any kernel package update |
 | [`cdclk-ptl/`](../cdclk-ptl/) and [`edp-dsc/`](../edp-dsc/) | `xe.ko` | any kernel package update, and only if one was installed |
@@ -62,7 +61,7 @@ hook fills in.
 
 | Hook | Trigger | Action |
 |---|---|---|
-| `95-…-kernel-modules` | any `usr/lib/modules/*/vmlinuz` installed or upgraded | rebuilds `headset-mic`, `sof-audio`, `hotkeys` and the `xe.ko` set for each kernel named in the transaction, in `PostTransaction` |
+| `95-…-kernel-modules` | any `usr/lib/modules/*/vmlinuz` installed or upgraded | rebuilds `sof-audio`, `hotkeys` and the `xe.ko` set for each kernel named in the transaction, in `PostTransaction` |
 | `96-…-libfprint` | `libfprint` installed or upgraded | re-applies the fingerprint patch |
 
 Neither rebuild runs inside the transaction. Both are handed to a transient

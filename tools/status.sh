@@ -93,7 +93,12 @@ for fix in acpi-override psr-band oled-backlight cdclk-ptl edp-dsc headset-mic s
     edp-dsc)
         if grep -qs 'edp-dsc' /var/lib/honor/xe-module.stamp && overlay_loaded xe; then ok "$fix" "in the xe overlay"
         else module "$fix" xe; fi ;;
-    headset-mic) module "$fix" snd-hda-codec-alc269 ;;
+    headset-mic)
+        want="$(sed -n 's/.*hda_model=\([^ ]*\).*/\1/p' /etc/modprobe.d/honor-headset-mic.conf 2>/dev/null | head -1)"
+        have="$(cat /sys/class/sound/hwC*D0/modelname 2>/dev/null | head -1)"
+        if [[ -z "$want" ]]; then bad "$fix" "no /etc/modprobe.d/honor-headset-mic.conf"
+        elif [[ "$have" == "$want" ]]; then ok "$fix" "codec model $have"
+        else bad "$fix" "option set to $want, codec runs ${have:-no model}: reboot?"; fi ;;
     sof-audio)   module "$fix" snd-sof ;;
     micmute)
         if compgen -G '/etc/udev-hid-bpf/*micmute*.bpf.o' >/dev/null; then

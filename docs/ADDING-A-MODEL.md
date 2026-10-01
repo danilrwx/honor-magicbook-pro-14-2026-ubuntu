@@ -122,7 +122,7 @@ and none of them is in a dump. They live with the fix that reads them, in
 | `fan` | `ec_fan0`, `ec_fan1`, the tachometer fields in that machine's DSDT |
 | `battery` | `presets`, found by writing a pair and reading EC `0x85` |
 | `oled-backlight` | `backlight_min`, measured by eye with `measure-floor.sh` |
-| `headset-mic` | `fixup`, naming a piece of kernel code written for that board |
+| `headset-mic` | `fixup`, naming the `alc269.c` model (`fixup_models[]`) that board needs |
 
 Until one of those exists the fix declines by name and says which value is
 missing, which is more use than being silently absent.
@@ -282,7 +282,7 @@ or a binary rather than a number:
 | Fix | What a new model needs |
 |---|---|
 | `acpi-override` | the same table, or its own. The installer compares the md5 of your live `I2C_DEVT` against the stock one in `dump/acpi/` and refuses unless they match, so a model that happens to ship the identical table is covered for free — ZQC-P and XWC-P do — and one that does not gets a clean refusal. If yours differs, rebuild it from your own tables with `build/build_patch.sh` and [RESEARCH.md](RESEARCH.md) |
-| `headset-mic` | possibly a new `alc269.c` fixup. The installer refuses if `fixup` in that board's directory names one it does not know how to emit |
+| `headset-mic` | the `alc269.c` model that fixes the jack, found by trying `hda_model=` candidates with a reboot each; a board no stock model fits needs an upstream quirk instead |
 | `fan` | `ec_fan0` and `ec_fan1` for that board, read out of its own DSDT and written into `patch/fan/<model>/<board>/recipe.conf`. The installer passes them to the module as parameters, so nothing has to be added to the driver; it refuses if that file does not record them |
 
 `fingerprint`, `micmute` and `touchpad-edge` are in between: the id comes from
