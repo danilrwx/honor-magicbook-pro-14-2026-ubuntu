@@ -191,7 +191,7 @@ xe_build_install() {
                 "https://github.com/CachyOS/linux/releases/download/${TAG}/${TAG}.tar.gz" \
                 || _xe_die "download failed. Check that the release ${TAG} exists."
             _xe_log "unpacking"
-            tar xzf "${TAG}.tar.gz"
+            tar xzf "${TAG}.tar.gz" --no-same-owner
             rm -f "${TAG}.tar.gz"
         else
             _xe_log "reusing the existing source tree $SRCDIR"
@@ -219,7 +219,7 @@ xe_build_install() {
     newest kernel and re-run if the module refuses to load"
         if [[ ! -d "$SRCDIR" ]]; then
             _xe_log "unpacking $SRC_TGZ"
-            tar xf "$SRC_TGZ"
+            tar xf "$SRC_TGZ" --no-same-owner
         fi
     else
         local MAJOR="${KBASE%%.*}"
@@ -229,7 +229,7 @@ xe_build_install() {
             curl -fSL --retry 3 -o "linux-${KBASE}.tar.xz" \
                 "https://cdn.kernel.org/pub/linux/kernel/v${MAJOR}.x/linux-${KBASE}.tar.xz" \
                 || _xe_die "download failed"
-            tar xf "linux-${KBASE}.tar.xz"
+            tar xf "linux-${KBASE}.tar.xz" --no-same-owner
             rm -f "linux-${KBASE}.tar.xz"
         fi
         _xe_warn "building against a vanilla tree. If this distro patches drm/,

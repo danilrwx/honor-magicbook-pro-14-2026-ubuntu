@@ -82,10 +82,12 @@ fi
 # The regression landed in v7.1.6 and is still unfixed in every later release.
 # Anything older than that, or any tree that already carries the fix, needs
 # nothing. The source check below is the authoritative one; this is just a
-# friendly early exit.
+# friendly early exit. Not on Debian and Ubuntu: their kernels keep the base
+# version and take stable fixes as backports (Ubuntu's 7.0.0-38 carries this
+# regression), so only the source can tell.
 KBASE="${KVER%%-*}"
 OLDEST_BAD="7.1.6"
-if [[ "$KBASE" != "$OLDEST_BAD" &&
+if ! command -v apt-get >/dev/null && [[ "$KBASE" != "$OLDEST_BAD" &&
       "$(printf '%s\n%s\n' "$KBASE" "$OLDEST_BAD" | sort -V | head -1)" == "$KBASE" ]]; then
     warn "kernel $KBASE predates the regression (it was introduced in $OLDEST_BAD)."
     warn "Nothing to fix here. Set FORCE=1 to build anyway."
