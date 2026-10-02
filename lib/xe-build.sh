@@ -131,6 +131,17 @@ xe_build_install() {
         NEED=(gcc)
     fi
     NEED+=(make bc flex bison zstd curl tar depmod patch)
+    # On Debian and Ubuntu the build needs headers no tool check sees (libelf,
+    # libssl, libdw for gendwarfksyms), so the whole set goes in up front; only
+    # what is missing, so a rebuild on a kernel update needs no apt run.
+    if [[ "$(distro_family)" == debian ]]; then
+        local -a missing=()
+        for t in build-essential bc flex bison zstd curl patch libelf-dev libssl-dev libdw-dev dwarves; do
+            dpkg -s "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        (( ${#missing[@]} == 0 )) || { _xe_log "installing build dependencies: ${missing[*]}"
+            distro_pkg_install "${missing[@]}" >/dev/null || _xe_die "installing ${missing[*]} failed"; }
+    fi
     for t in "${NEED[@]}"; do
         command -v "$t" >/dev/null || _xe_die "missing required tool: $t"
     done
