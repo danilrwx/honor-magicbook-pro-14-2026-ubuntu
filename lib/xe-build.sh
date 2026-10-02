@@ -279,6 +279,9 @@ xe_build_install() {
     else
         printf '%s\n' "-${KVER#"${KBASE}"}" | sed 's/^--/-/' > localversion.90-local
     fi
+    # Ubuntu's linux-source carries the stable SUBLEVEL it was rebased on (7.0.14)
+    # while the kernel it built calls itself 7.0.0; the release must match.
+    sed -i "s/^SUBLEVEL = .*/SUBLEVEL = ${KBASE##*.}/" Makefile
 
     # The build has no access to the distro signing key. Where Secure Boot
     # needs a signature the module gets one below, with the machine owner key.
