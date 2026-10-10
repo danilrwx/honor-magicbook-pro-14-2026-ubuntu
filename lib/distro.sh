@@ -52,6 +52,17 @@ distro_pkg_install() {
     esac
 }
 
+# distro_deb_need <package>...: on Debian and Ubuntu, those not installed yet installed, so an installer
+# brings what it builds with and a rebuild from a kernel hook (no apt run there) finds it in place; elsewhere
+# nothing, the installer's tool check names what is missing.
+distro_deb_need() {
+    [[ "$(distro_family)" == debian ]] || return 0
+    local -a absent=()
+    local p
+    for p in "$@"; do dpkg -s "$p" >/dev/null 2>&1 || absent+=("$p"); done
+    (( ${#absent[@]} == 0 )) || distro_pkg_install "${absent[@]}" >/dev/null
+}
+
 # distro_kernel_headers_pkg <kver> -> the package name providing that kernel's
 # headers, empty if it cannot be worked out.
 distro_kernel_headers_pkg() {

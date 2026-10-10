@@ -91,6 +91,8 @@ if ! variant_find "$SCRIPT_DIR"; then
 fi
 echo "[*] machine: $(variant_note)"
 
+distro_deb_need curl zstd build-essential patch kmod || echo "installing the build tools failed" >&2
+distro_kernel_config_has CONFIG_CC_IS_CLANG=y "$KVER" && { distro_deb_need clang lld llvm || echo "installing clang failed" >&2; }
 req curl
 req zstdcat
 req zstd

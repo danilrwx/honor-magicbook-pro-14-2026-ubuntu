@@ -76,6 +76,8 @@ log "machine  = $(variant_note)"
 log "touchpad $HID_ID: $(recipe_get name)"
 recipe_warn_unverified
 
+# libbpf-dev for <bpf/bpf_tracing.h>, which no tool check sees
+distro_deb_need clang bpftool curl udev-hid-bpf udev libbpf-dev || warn "installing the build tools failed"
 MISSING=()
 for t in clang bpftool curl udev-hid-bpf udevadm; do
     command -v "$t" >/dev/null || MISSING+=("$t")

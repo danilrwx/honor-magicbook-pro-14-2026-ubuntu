@@ -90,6 +90,8 @@ recipe_warn_unverified
 
 legacy_move /usr/local/lib/honor-zqcp /usr/local/lib/honor
 
+# libbpf-dev for <bpf/bpf_tracing.h>, which no tool check sees
+distro_deb_need clang bpftool curl udev-hid-bpf udev libbpf-dev || warn "installing the build tools failed"
 MISSING=()
 for t in clang bpftool curl udev-hid-bpf udevadm; do
     command -v "$t" >/dev/null || MISSING+=("$t")

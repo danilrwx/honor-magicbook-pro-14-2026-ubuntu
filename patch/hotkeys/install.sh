@@ -43,6 +43,7 @@ variant_find "$SCRIPT_DIR" || die \
 HWDB_SRC="${VARIANT_DIR}/$(recipe_get hwdb)"
 [[ -f "$HWDB_SRC" ]] || die "${VARIANT_DIR}/recipe.conf names an hwdb file that is not there: $(recipe_get hwdb)"
 
+distro_deb_need curl build-essential || warn "installing the build tools failed"
 for t in curl make; do command -v "$t" >/dev/null || die "missing required tool: $t"; done
 KDIR="$(distro_module_dir "$KVER")/build"
 [[ -d "$KDIR" ]] || die "no kernel build directory at $KDIR.
