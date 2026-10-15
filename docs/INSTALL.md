@@ -32,7 +32,8 @@ affected.
 | 15 | Runs `patch/battery/install.sh` — arms a charge preset the EC actually enforces, and keeps it armed across boots |
 | 16 | Runs `patch/hotkeys/install.sh` — rebuilds `huawei-wmi` with the HONOR hotkey codes, plus a hwdb entry for the atkbd noise |
 | 17 | Runs `patch/hotkey-actions/install.sh` — the performance key cycles power profiles, the camera key switches the webcam off |
-| 18 | Runs `patch/auto-rebuild/install.sh` — package-manager hooks that keep steps 9, 10 and 14 applied across package updates |
+| 18 | Runs `patch/dmic-array/install.sh` — a PipeWire source of the two built-in microphones through WebRTC, the default mic |
+| 19 | Runs `patch/auto-rebuild/install.sh` — package-manager hooks that keep steps 9, 10 and 14 applied across package updates |
 
 `apply_patch.sh` exits non-zero if any step reported a problem, and prints how
 many at the end. Everything that did work is still applied: the steps are

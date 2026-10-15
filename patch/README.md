@@ -68,6 +68,7 @@ on several of them the honest answer is that nothing here applies at all. See
 | Microphone mutes itself, mic-mute LED flickers | works | [`micmute/`](micmute/) — HID-BPF fixup for the touchscreen's vendor collection |
 | Fingerprint reader, Goodix `27c6:6f94` | works | [`fingerprint/`](fingerprint/) — two-line `libfprint` id patch |
 | Headset microphone, 3.5 mm jack | works | [`headset-mic/`](headset-mic/) — the stock `alc255-dell2` model as a modprobe option, no rebuild |
+| Built-in microphones sound hollow, far away | works | [`dmic-array/`](dmic-array/) — the two microphones alone through WebRTC, as the default PipeWire source |
 | OLED minimum brightness too low, uneven steps | works | [`oled-backlight/`](oled-backlight/) — patched VBT raises the firmware's backlight floor |
 | Faint wide band follows the mouse pointer | works | [`psr-band/`](psr-band/) — PSR2 selective update can only refresh whole scanlines, so every partial update is a full-width band; limits PSR to PSR1, which has none |
 | Touchpad left-edge slide does nothing | works | [`touchpad-edge/`](touchpad-edge/) — HID-BPF turns the vendor gesture report into brightness keys |

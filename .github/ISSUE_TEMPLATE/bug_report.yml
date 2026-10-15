@@ -42,6 +42,7 @@ body:
         - battery (charge limit)
         - hotkeys (Fn keys missing from the keymap)
         - hotkey-actions (performance mode, camera toggle)
+        - dmic-array (built-in microphone array)
         - auto-rebuild (package-manager hooks)
         - keyboard-atkbd
         - device detection picked the wrong profile, or no profile

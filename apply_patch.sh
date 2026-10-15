@@ -12,6 +12,7 @@
 #   SKIP_FINGERPRINT=1   no libfprint rebuild (by far the slowest step)
 #   SKIP_HEADSET=1       no alc255-dell2 codec model option (3.5 mm headset mic)
 #   SKIP_SOF=1           no snd-sof rebuild (preventive DSP resume fix)
+#   SKIP_DMIC=1          leave the built-in microphone array as four raw channels
 #   SKIP_CDCLK=1         no Panther Lake cdclk fix. On by default where the
 #   SKIP_DSC=1           profile lists it; both rebuild xe.ko, which downloads
 #                        the kernel source and compiles for a few minutes
@@ -29,7 +30,7 @@
 #      (see README for the trade-off with Caps Lock LED).
 #   3) Analog 3.5mm-jack headset microphone unusable — PCI SSID 1ee7:209d
 #      is missing from sound/hda/codecs/realtek/alc269.c quirk table.
-#      Step [9/18] names the stock alc255-dell2 model in a modprobe option
+#      Step [9/19] names the stock alc255-dell2 model in a modprobe option
 #      (pin 0x19 as a headset mic without jack detect, headset mode); see
 #      patch/headset-mic/install.sh and the upstream patch at
 #      patch/headset-mic/zqc-p/M1010/alc269-headset-mic.patch.
@@ -38,7 +39,7 @@
 #      ipc_config_data buffer is cached at first ipc_prepare and reused;
 #      on resume the host/link DMA channels are re-allocated with new
 #      tags but the stale cached payload still gets sent to firmware,
-#      producing a ChainDMA collision and DSP panic. Step [10/18] backports
+#      producing a ChainDMA collision and DSP panic. Step [10/19] backports
 #      the upstream fix (thesofproject/linux PR #5762 by @ujfalusi) and
 #      installs the rebuilt snd-sof.ko in the modules updates/ overlay.
 #      Note: on this specific HONOR ZQC-P unit the upstream race was
@@ -59,7 +60,7 @@
 #      collection becomes an input device whose only key is
 #      KEY_MICMUTE. All 59 data bytes carry that usage and hid-input
 #      sets EV_REP, so one vendor report leaves the key held down and
-#      auto-repeating at ~30 Hz. Step [11/18] installs a HID-BPF
+#      auto-repeating at ~30 Hz. Step [11/19] installs a HID-BPF
 #      rdesc_fixup that rewrites the usage page to 0xff00, which
 #      hid-input ignores. Touchscreen, touchpad and the real Fn+F7
 #      (which arrives over WMI, not HID) are unaffected.
@@ -67,13 +68,13 @@
 #   6) The OLED panel does not render its firmware-declared minimum
 #      brightness evenly: the VBT says 6/255, which is 2.4% PWM duty, and
 #      at that level the panel shows a colour cast and visible blotches.
-#      Step [6/18] feeds the driver a VBT with the floor raised to
+#      Step [6/19] feeds the driver a VBT with the floor raised to
 #      12/255, measured on two units. See patch/oled-backlight/.
 #   7) A wide, faint, darker band follows the mouse pointer up and down
 #      the screen. PSR2 selective update can only address a range of
 #      scanlines, never a rectangle, so every partial update is full
 #      width, and on this OLED the re-sent lines do not match the ones
-#      the panel is still driving from its own buffer. Step [5/18] limits
+#      the panel is still driving from its own buffer. Step [5/19] limits
 #      PSR to PSR1, which has no partial updates. Confirmed by turning
 #      PSR2 back on and watching the band return. See patch/psr-band/.
 #   8) Since kernel 7.1.6 the screen is garbled during boot on Panther
@@ -82,35 +83,40 @@
 #      can never match and every driver load forces a full CDCLK PLL
 #      restart while the panel is lit. Upstream commit 2ee8dbd880b1,
 #      stable backport 1e9b961f9f45. The four-line upstream fix is not
-#      merged anywhere yet, so step [7/18] rebuilds xe.ko with it.
+#      merged anywhere yet, so step [7/19] rebuilds xe.ko with it.
 #      SKIP_CDCLK=1 leaves it alone. See patch/cdclk-ptl/.
 #   9) The internal panel is driven at 6 bits per colour with dithering.
 #      Its link tops out at HBR2, which cannot carry 8 bpc at 3120x2080
 #      120 Hz, and the driver is allowed to drop colour depth to make a
 #      mode fit before it will consider compression. The panel supports
 #      DSC, the firmware permits it, and forcing it gives 10 bpc with the
-#      link less than half loaded. Step [7/18] builds the same xe.ko with
+#      link less than half loaded. Step [7/19] builds the same xe.ko with
 #      a patch that prefers compression over going below 8 bpc on eDP,
 #      falling back to the old behaviour if DSC does not compute.
 #      SKIP_DSC=1 leaves it alone. See patch/edp-dsc/.
 #  10) Sliding along the left edge of the touchpad is a HONOR brightness
 #      gesture that goes nowhere under Linux: it is reported on a vendor
-#      HID collection that hid-input discards. Step [12/18] installs a
+#      HID collection that hid-input discards. Step [12/19] installs a
 #      HID-BPF program that injects a real brightness key tap per gesture
 #      report. The right edge (volume) reaches the OS through the EC as
 #      ordinary key events and needs nothing. See patch/touchpad-edge/.
 #  11) Fan tachometers are invisible: the ACPI fan participant's _FST is a
-#      stub. Step [13/18] installs a small hwmon module that reads the EC
+#      stub. Step [13/19] installs a small hwmon module that reads the EC
 #      registers directly. Read-only, the EC owns the curve.
 #      See patch/fan/.
 #  12) The fingerprint reader (Goodix 27c6:6f94) is missing from
-#      libfprint's id table. Step [14/18] rebuilds the package with two
+#      libfprint's id table. Step [14/19] rebuilds the package with two
 #      lines added. See patch/fingerprint/.
-#  13) The fixes in steps [9/18] and [10/18] live inside kernel modules that
+#  13) The fixes in steps [9/19] and [10/19] live inside kernel modules that
 #      a kernel package update replaces, and the fingerprint patch lives
-#      in libfprint, which a libfprint update replaces. Step [18/18]
+#      in libfprint, which a libfprint update replaces. Step [19/19]
 #      installs package-manager hooks that rebuild them automatically, so nothing
 #      silently reverts. See patch/auto-rebuild/.
+#  14) The built-in microphone array sounds hollow and far away. SOF captures it
+#      as four channels, the two microphones and the DSP's beam twice, the beam
+#      in opposite phase, and applications downmix all four. Step [18/19]
+#      installs a PipeWire config: the two microphones alone through WebRTC, as
+#      the default source. See patch/dmic-array/.
 #
 # Fn+F7 mic-mute already works out of the box on this hardware via the
 # huawei-wmi driver (separate "Huawei WMI hotkeys" input device emits
@@ -145,7 +151,7 @@ req cp
 #────────────────────────────────────────────────────────────────────────
 # Identify the machine before touching it.
 #
-# Most of what follows was derived from one physical unit. Step [2/18] in
+# Most of what follows was derived from one physical unit. Step [2/19] in
 # particular installs an ACPI table dumped from that unit's firmware, and a
 # foreign SSDT is not a fix that fails quietly, it is a machine that may not
 # boot. So: no profile, no install.
@@ -303,7 +309,7 @@ for d in /usr/lib/modules/*/ /lib/modules/*/; do
     [[ "$(printf '%s\n%s\n' "$NEWEST" "$k" | sort -V | tail -1)" == "$k" ]] && NEWEST="$k"
 done
 
-MODULE_STEPS="[7/18] cdclk-ptl + edp-dsc, [10/18] sof-audio, [13/18] fan, [16/18] hotkeys"
+MODULE_STEPS="[7/19] cdclk-ptl + edp-dsc, [10/19] sof-audio, [13/19] fan, [16/19] hotkeys"
 
 if [[ ! -e "${KDIR_RUNNING}/Makefile" ]]; then
     echo
@@ -352,9 +358,9 @@ step_warn() { printf '    [warn] %s\n' "$*"; STEP_WARNINGS=$((STEP_WARNINGS + 1)
 mkdir -p "$BACKUP"
 
 #────────────────────────────────────────────────────────────────────────
-# [1/18] Backup everything we are about to touch.
+# [1/19] Backup everything we are about to touch.
 #────────────────────────────────────────────────────────────────────────
-echo "[1/18] Backup → $BACKUP"
+echo "[1/19] Backup → $BACKUP"
 # Every path that any step below may edit, on any of the distributions this
 # supports. Missing ones are not an error: an Arch machine has no
 # /etc/default/grub and a Debian one has no /etc/mkinitcpio.conf.
@@ -372,9 +378,9 @@ done
 echo "    OK"
 
 #────────────────────────────────────────────────────────────────────────
-# [2/18] Install patched SSDT and mkinitcpio install hook.
+# [2/19] Install patched SSDT and mkinitcpio install hook.
 #────────────────────────────────────────────────────────────────────────
-echo "[2/18] Install patched SSDT + mkinitcpio hook"
+echo "[2/19] Install patched SSDT + mkinitcpio hook"
 ACPI_OK=1
 fix_enabled acpi-override || ACPI_OK=0
 
@@ -518,13 +524,13 @@ esac
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [3/18] Put the override in front of the initramfs.
+# [3/19] Put the override in front of the initramfs.
 #
 # Two mechanisms, picked by lib/distro.sh: an mkinitcpio install hook plus a
 # HOOKS= entry on Arch, or a CPIO built here and given to GRUB as an additional
 # initrd on Debian and Ubuntu. Same .aml either way.
 #────────────────────────────────────────────────────────────────────────
-echo "[3/18] Wire the override into the initramfs"
+echo "[3/19] Wire the override into the initramfs"
 if (( ! ACPI_OK )); then
     echo "    skipped — goes with the ACPI override above"
 elif [[ "$ACPI_STYLE" == early-cpio ]]; then
@@ -567,7 +573,7 @@ echo "    HOOKS=$(grep -E '^HOOKS=' /etc/mkinitcpio.conf)"
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [4/18] Append i8042.dumbkbd=1 to the kernel command line (idempotent).
+# [4/19] Append i8042.dumbkbd=1 to the kernel command line (idempotent).
 #
 # The parameter is still added even on a kernel that carries the upstream
 # atkbd quirk, because the two are not equally bad if we guess wrong: a
@@ -575,7 +581,7 @@ fi
 # machine with no keyboard at the login screen. So we add it and say when it
 # has become unnecessary, rather than deciding for the user.
 #────────────────────────────────────────────────────────────────────────
-echo "[4/18] Patch the kernel command line (i8042.dumbkbd=1)"
+echo "[4/19] Patch the kernel command line (i8042.dumbkbd=1)"
 
 # Kernel versions in which the upstream atkbd_deactivate_fixup entry for this
 # model shipped: the mainline release, and any stable series it was backported
@@ -617,17 +623,17 @@ EOF
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [5/18] Limit Panel Self Refresh to PSR1.
+# [5/19] Limit Panel Self Refresh to PSR1.
 #
 # PSR2 selective update can only address a range of scanlines, never a
 # rectangle, so every partial update is a band the full width of the screen.
 # Moving the pointer drags that band up and down with it, and on this OLED it
 # is visible. PSR1 has no partial updates. See patch/psr-band/.
 #
-# This is a command line change like [4/18], so it runs here, before the single
-# bootloader regeneration in [8/18], and passes REGEN=0 for the same reason.
+# This is a command line change like [4/19], so it runs here, before the single
+# bootloader regeneration in [8/19], and passes REGEN=0 for the same reason.
 #────────────────────────────────────────────────────────────────────────
-echo "[5/18] Limit Panel Self Refresh to PSR1 (kernel parameter)"
+echo "[5/19] Limit Panel Self Refresh to PSR1 (kernel parameter)"
 
 if ! fix_enabled psr-band; then
     echo "    skipped — $MODEL does not list psr-band"
@@ -639,16 +645,16 @@ else
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [6/18] Raise the OLED backlight floor through a patched VBT.
+# [6/19] Raise the OLED backlight floor through a patched VBT.
 # The firmware declares a minimum of 6/255, which lands on 2.4% PWM duty,
 # and this panel does not render that evenly: colour cast and blotches.
 # Measured on two units, the first clean level is just under 4%; the
 # installer defaults to 12/255 = 4.69%. It edits FILES= and the cmdline,
-# so it runs before the single initramfs rebuild in [8/18].
+# so it runs before the single initramfs rebuild in [8/19].
 # Set SKIP_OLED=1 to leave the backlight range alone, or VBT_MIN=<n> to
 # override the floor after running patch/oled-backlight/measure-floor.sh.
 #────────────────────────────────────────────────────────────────────────
-echo "[6/18] Raise the OLED backlight minimum (patched VBT)"
+echo "[6/19] Raise the OLED backlight minimum (patched VBT)"
 if [[ "${SKIP_OLED:-0}" == "1" ]]; then
     echo "    skipped — SKIP_OLED=1"
 elif ! fix_enabled oled-backlight; then
@@ -662,7 +668,7 @@ else
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [7/18] Rebuild xe.ko with the Panther Lake CDCLK sanitization fix.
+# [7/19] Rebuild xe.ko with the Panther Lake CDCLK sanitization fix.
 # Since 7.1.6 the shared i915 display code compares a CDCLK_CTL field that
 # Panther Lake no longer has, never matches, and forces a full CDCLK PLL
 # disable+enable while the panel is already lit by the GOP. The result is a
@@ -679,10 +685,10 @@ fi
 # are there for when the download is the problem.
 #
 # It installs into modules updates/ and runs before the single initramfs
-# rebuild in [8/18], because the early-KMS copy of xe.ko is the one that
+# rebuild in [8/19], because the early-KMS copy of xe.ko is the one that
 # lights the panel.
 #────────────────────────────────────────────────────────────────────────
-echo "[7/18] Rebuild xe.ko with the patches that live inside it"
+echo "[7/19] Rebuild xe.ko with the patches that live inside it"
 
 # One module, two patches, so one build. XE_SKIP keeps them separate: skipping
 # the DSC preference is not skipping the cdclk fix.
@@ -727,24 +733,24 @@ else
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [8/18] Rebuild the initramfs and regenerate the bootloader config.
+# [8/19] Rebuild the initramfs and regenerate the bootloader config.
 #
 # Both, and in that order. On Arch the two are usually the same command, so the
 # second call is a no-op. On Debian and Ubuntu they are not: update-initramfs
 # does not touch grub.cfg, and without update-grub neither the new command line
 # nor the early ACPI CPIO from step 3 would take effect at the next boot.
 #────────────────────────────────────────────────────────────────────────
-echo "[8/18] Rebuild initramfs and bootloader config"
+echo "[8/19] Rebuild initramfs and bootloader config"
 distro_initramfs_rebuild || step_warn "rebuild the initramfs yourself before rebooting"
 distro_bootloader_update || step_warn "regenerate your bootloader config yourself before rebooting"
 
 #────────────────────────────────────────────────────────────────────────
-# [9/18] ALC256 headset mic on the 3.5mm jack: /etc/modprobe.d option naming
+# [9/19] ALC256 headset mic on the 3.5mm jack: /etc/modprobe.d option naming
 # the stock alc255-dell2 model (pin 0x19 = 0x01a1913c, headset mode), no
 # module rebuild. Also removes the rebuilt snd-hda-codec-alc269 overlay of
 # earlier revisions, which hangs 7.0 kernels at boot. Needs a reboot.
 #────────────────────────────────────────────────────────────────────────
-echo "[9/18] Apply ALC256 headset-mic model (modprobe option)"
+echo "[9/19] Apply ALC256 headset-mic model (modprobe option)"
 if ! fix_enabled headset-mic; then
     :
 elif [[ "${SKIP_HEADSET:-0}" == "1" ]]; then
@@ -758,7 +764,7 @@ else
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [10/18] Build + install SOF IPC4 copier-payload refresh patch
+# [10/19] Build + install SOF IPC4 copier-payload refresh patch
 # (thesofproject/linux PR #5762 by @ujfalusi). Fetches the running
 # kernel's sound/soc/sof/ tree from the upstream stable tree, applies the
 # 33-line ipc4-topology.c fix, builds snd-sof.ko out-of-tree and drops
@@ -770,7 +776,7 @@ fi
 # Skipped silently if kernel lockdown / module.sig_enforce blocks
 # unsigned modules — see patch/sof-audio/install.sh for details.
 #────────────────────────────────────────────────────────────────────────
-echo "[10/18] Apply SOF IPC4 copier-payload refresh (snd-sof rebuild)"
+echo "[10/19] Apply SOF IPC4 copier-payload refresh (snd-sof rebuild)"
 if ! fix_enabled sof-audio; then
     :
 elif [[ "${SKIP_SOF:-0}" == "1" ]]; then
@@ -785,14 +791,14 @@ else
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [11/18] Build + install the HID-BPF phantom-KEY_MICMUTE fixup.
+# [11/19] Build + install the HID-BPF phantom-KEY_MICMUTE fixup.
 # Builds patch/micmute/honor-ftsc1000-micmute.bpf.c against the running
 # kernel's BTF and installs it through udev-hid-bpf into
 # /etc/udev-hid-bpf/ with a matching udev rule. Nothing has to be
 # repeated after a kernel update. Requires clang, bpftool and
 # udev-hid-bpf.
 #────────────────────────────────────────────────────────────────────────
-echo "[11/18] Remove phantom KEY_MICMUTE device (HID-BPF descriptor fixup)"
+echo "[11/19] Remove phantom KEY_MICMUTE device (HID-BPF descriptor fixup)"
 if ! fix_enabled micmute; then
     :
 elif bash "$PATCH_DIR/micmute/install.sh"; then
@@ -804,13 +810,13 @@ else
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [12/18] Build + install the HID-BPF program that turns the touchpad's
+# [12/19] Build + install the HID-BPF program that turns the touchpad's
 # left-edge slide into brightness keys. The gesture is reported on a
 # vendor collection hid-input ignores; the program injects a consumer
 # key tap per gesture report. The right edge (volume) goes through the
 # EC and needs nothing. Set SKIP_EDGE=1 to skip.
 #────────────────────────────────────────────────────────────────────────
-echo "[12/18] Touchpad left-edge slide → brightness (HID-BPF)"
+echo "[12/19] Touchpad left-edge slide → brightness (HID-BPF)"
 if ! fix_enabled touchpad-edge; then
     :
 elif [[ "${SKIP_EDGE:-0}" == "1" ]]; then
@@ -823,12 +829,12 @@ else
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [13/18] Build + install honor-ec-sensors, which exposes the EC fan
+# [13/19] Build + install honor-ec-sensors, which exposes the EC fan
 # tachometers to lm_sensors. Read-only: fan speed on this machine is
 # EC-autonomous and cannot be driven from the OS. Uses DKMS when
 # available, so kernel updates rebuild it. Set SKIP_FAN=1 to skip.
 #────────────────────────────────────────────────────────────────────────
-echo "[13/18] Fan RPM readout (honor-ec-sensors)"
+echo "[13/19] Fan RPM readout (honor-ec-sensors)"
 if ! fix_enabled fan; then
     :
 elif [[ "${SKIP_FAN:-0}" == "1" ]]; then
@@ -841,12 +847,12 @@ else
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [14/18] Rebuild libfprint with the Goodix 27c6:6f94 id added, as a
+# [14/19] Rebuild libfprint with the Goodix 27c6:6f94 id added, as a
 # pacman-owned package so it does not conflict on the next update. This
 # is the slowest step by far: it downloads the libfprint sources and
 # builds them. Set SKIP_FINGERPRINT=1 to skip.
 #────────────────────────────────────────────────────────────────────────
-echo "[14/18] Fingerprint reader (libfprint id patch)"
+echo "[14/19] Fingerprint reader (libfprint id patch)"
 if ! fix_enabled fingerprint; then
     :
 elif [[ "${SKIP_FINGERPRINT:-0}" == "1" ]]; then
@@ -862,14 +868,14 @@ else
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [15/18] Make the battery charge limit actually take effect.
+# [15/19] Make the battery charge limit actually take effect.
 # huawei-wmi already exposes the limit and the desktop already sets it. It just
 # does nothing: the EC only enforces the pairs HONOR PC Manager offers and
 # silently ignores every other one, so a perfectly reasonable 75-80 leaves the
 # machine charging to 100%. See patch/battery/.
 # CHARGE_PRESET="40 70" picks a different preset, "0 100" removes the limit.
 #────────────────────────────────────────────────────────────────────────
-echo "[15/18] Battery charge limit (EC preset)"
+echo "[15/19] Battery charge limit (EC preset)"
 if ! fix_enabled battery; then
     :
 elif bash "$PATCH_DIR/battery/install.sh" >/dev/null; then
@@ -891,12 +897,12 @@ else
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [16/18] Map the HONOR hotkey codes the in-tree huawei-wmi does not know.
+# [16/19] Map the HONOR hotkey codes the in-tree huawei-wmi does not know.
 # The keys reach the driver and die there as "Unknown key pressed". A udev
 # hwdb rule cannot help: sparse_keymap rejects scancodes it has never heard of,
 # so this has to be a driver change. See patch/hotkeys/.
 #────────────────────────────────────────────────────────────────────────
-echo "[16/18] Fn hotkeys (huawei-wmi keymap)"
+echo "[16/19] Fn hotkeys (huawei-wmi keymap)"
 if ! fix_enabled hotkeys; then
     :
 elif bash "$PATCH_DIR/hotkeys/install.sh" >/dev/null; then
@@ -906,13 +912,13 @@ else
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [17/18] Give those hotkeys something to do.
+# [17/19] Give those hotkeys something to do.
 # Step 15 makes the keys arrive as key events; that is where the kernel's job
 # ends. KEY_PROG1 means "programmable key one" and no desktop binds it, and
 # nothing turns the camera key into a camera that is actually off. A small
 # service does both, so it works the same under GNOME, KDE or nothing.
 #────────────────────────────────────────────────────────────────────────
-echo "[17/18] Hotkey actions (performance key, camera key)"
+echo "[17/19] Hotkey actions (performance key, camera key)"
 if ! fix_enabled hotkey-actions; then
     :
 elif bash "$PATCH_DIR/hotkey-actions/install.sh" >/dev/null; then
@@ -922,12 +928,31 @@ else
 fi
 
 #────────────────────────────────────────────────────────────────────────
-# [18/18] Install package-manager hooks that re-apply the fixes a package update
+# [18/19] The built-in microphone array as one clean source.
+# SOF gives PipeWire four channels, the two microphones and the DSP's beam
+# twice, the beam in opposite phase, and every application downmixes all four.
+# A PipeWire config takes the two microphones alone through WebRTC and makes
+# that the default source. Nothing built, nothing to redo after an update.
+#────────────────────────────────────────────────────────────────────────
+echo "[18/19] Built-in microphone array (PipeWire)"
+if ! fix_enabled dmic-array; then
+    :
+elif [[ "${SKIP_DMIC:-0}" == "1" ]]; then
+    echo "    skipped — SKIP_DMIC=1"
+elif bash "$PATCH_DIR/dmic-array/install.sh" >/dev/null; then
+    echo "    OK"
+else
+    step_warn "microphone array config failed — the raw four-channel array"
+    echo "    stays the default. See patch/dmic-array/install.sh output above."
+fi
+
+#────────────────────────────────────────────────────────────────────────
+# [19/19] Install package-manager hooks that re-apply the fixes a package update
 # would otherwise revert: a kernel update replaces the module patched in
-# step [10/18], and a libfprint update drops the fingerprint
+# step [10/19], and a libfprint update drops the fingerprint
 # patch. The hooks rebuild them automatically. Arch-like systems only.
 #────────────────────────────────────────────────────────────────────────
-echo "[18/18] Install the auto-rebuild package-manager hooks"
+echo "[19/19] Install the auto-rebuild package-manager hooks"
 if ! fix_enabled auto-rebuild; then
     :
 elif { command -v pacman || command -v apt-get; } >/dev/null && bash "$PATCH_DIR/auto-rebuild/install.sh" >/dev/null; then
@@ -937,8 +962,8 @@ elif ! { command -v pacman || command -v apt-get; } >/dev/null; then
     echo "    after every kernel update."
 else
     step_warn "hook install failed — the fixes still work, but a kernel"
-    echo "    update will revert step [10/18] until you re-run it."
-    echo "    Step [7/18] is not hooked either: rerun it by hand after a"
+    echo "    update will revert step [10/19] until you re-run it."
+    echo "    Step [7/19] is not hooked either: rerun it by hand after a"
     echo "    kernel update, or drop it once the fix lands upstream."
 fi
 

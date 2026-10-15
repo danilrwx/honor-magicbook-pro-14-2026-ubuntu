@@ -48,6 +48,7 @@ ORDER=(
     acpi-override
     keyboard-atkbd
     headset-mic
+    dmic-array
     sof-audio
     auto-rebuild
     micmute

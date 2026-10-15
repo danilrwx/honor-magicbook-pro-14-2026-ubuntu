@@ -136,6 +136,7 @@ declare -gA FIX_TIER=(
     [battery]=B
     [hotkeys]=B
     [hotkey-actions]=A
+    [dmic-array]=B
     [fan]=B
     [oled-backlight]=B
     [acpi-override]=A
@@ -168,6 +169,7 @@ declare -ga FIX_ORDER=(
     battery
     hotkeys
     hotkey-actions
+    dmic-array
     auto-rebuild
 )
 

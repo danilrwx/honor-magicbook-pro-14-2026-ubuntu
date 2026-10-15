@@ -138,7 +138,7 @@ on `linux-cachyos 7.0.8` (Panther Lake-aware) under CachyOS.
 | HD-Audio + DSP (SOF) | PCI `8086:e428`, `sof-audio-pci-intel-ptl`, card `sofhdadsp` (HDA Analog + 3× HDMI) | Realtek HD Audio + Intel SST | ✅ *needs this patch* — see [`patch/sof-audio/`](../../patch/sof-audio/) (suspend/resume reliability) |
 | Phantom `KEY_MICMUTE` | the FTSC1000 touchscreen's `0xff01` vendor collection, which `hid-input` maps to `KEY_MICMUTE` | none, a FocalTech driver claims the collection | ✅ *needs this patch* — see [`patch/micmute/`](../../patch/micmute/); without it the mic mutes itself |
 | Speakers / headphone jack | ALSA `sof-hda-dsp Headphone` | (same as above) | ✅ |
-| Microphone array (DMIC) | SOF DMIC capture, `HiFi__Mic1__source` (4ch) | Intel Smart Sound DMIC | ✅ |
+| Microphone array (DMIC) | SOF DMIC capture, `HiFi__Mic1__source` (4ch: FL/FR the two microphones at the camera, RL = RR the DSP beam in opposite phase) | Intel Smart Sound DMIC | ✅ *needs this patch* — see [`patch/dmic-array/`](../../patch/dmic-array/); apps downmix all four and the voice partly cancels |
 | 3.5mm-jack headset microphone | ALC256 pin 0x19, `HiFi__Mic2__source` (2ch stereo) | Intel SST + Realtek HD Audio | ✅ *needs this patch* — see [`patch/headset-mic/`](../../patch/headset-mic/) |
 
 ### Sensors / thermal

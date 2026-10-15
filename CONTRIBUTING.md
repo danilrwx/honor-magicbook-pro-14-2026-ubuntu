@@ -240,6 +240,10 @@ HONOR_ZQC-P_M1010/
 │   │   ├── zqc-p/M1010/            #   the model name + the alc269.c quirk for upstream
 │   │   ├── zqc-p/M1050/            #   same_as=zqc-p/M1010
 │   │   └── install.sh              #   modprobe option hda_model=
+│   ├── dmic-array/                 # the built-in mics, four channels mixed against each other
+│   │   ├── zqc-p/M1010/            #   the raw array's PipeWire node, the channels measured
+│   │   ├── 51-honor-dmic-array.conf #  the two mics through WebRTC, the default source
+│   │   └── install.sh              #   /etc/pipewire/pipewire.conf.d/
 │   ├── sof-audio/                  # preventive IPC4 backport (PR #5762)
 │   │   ├── zqc-p/M1010/
 │   │   ├── zqc-p/M1050/

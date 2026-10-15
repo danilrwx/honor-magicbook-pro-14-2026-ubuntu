@@ -70,7 +70,7 @@ module() {
 }
 
 for fix in acpi-override psr-band oled-backlight cdclk-ptl edp-dsc headset-mic sof-audio \
-           micmute touchpad-edge fan fingerprint battery hotkeys hotkey-actions auto-rebuild; do
+           micmute touchpad-edge fan fingerprint battery hotkeys hotkey-actions dmic-array auto-rebuild; do
     profile_lists_fix "$fix" || { meh "$fix" "not listed for this board"; continue; }
     case "$fix" in
     acpi-override)
@@ -130,6 +130,9 @@ for fix in acpi-override psr-band oled-backlight cdclk-ptl edp-dsc headset-mic s
         if systemctl is-active --quiet honor-hotkey-actions.service; then ok "$fix" "service running"
         elif systemctl is-enabled --quiet honor-hotkey-actions.service 2>/dev/null; then bad "$fix" "service enabled but not running"
         else bad "$fix" "service not installed"; fi ;;
+    dmic-array)
+        if [[ -f /etc/pipewire/pipewire.conf.d/51-honor-dmic-array.conf ]]; then ok "$fix" "PipeWire config installed"
+        else bad "$fix" "no PipeWire config"; fi ;;
     auto-rebuild)
         if [[ -f /etc/kernel/postinst.d/95-honor-kernel-modules || -f /etc/pacman.d/hooks/95-honor-kernel-modules.hook ]]; then ok "$fix" "kernel hook installed"
         else bad "$fix" "no kernel hook"; fi ;;
